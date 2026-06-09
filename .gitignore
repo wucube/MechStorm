@@ -5,6 +5,7 @@
 [Mm]ech[Ss]torm_Unity/Builds/
 [Mm]ech[Ss]torm_Unity/Logs/
 [Mm]ech[Ss]torm_Unity/UserSettings/
+[Mm]ech[Ss]torm_Unity/.idea/
 
 *.csproj
 *.sln

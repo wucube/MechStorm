@@ -1,0 +1,16 @@
+{
+    "name": "MechStorm.Presentation",
+    "rootNamespace": "MechStorm.Presentation",
+    "references": [
+        "GUID:3c6b6bbfead94374fb3c2c3eb39f7fd8"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

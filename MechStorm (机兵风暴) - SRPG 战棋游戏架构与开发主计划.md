@@ -24,7 +24,7 @@
 为实现**极致解耦、服务端复用（PVP 预留）及高度可维护性**，确立以下四大架构铁律：
 
 1. **无头核心舱 (Headless Core)**
-   - `MechStorm.Core` 必须是 100% 纯 C#，**绝对禁止**引入 `UnityEngine` 命名空间。
+   - `MechStorm.Battle` 必须是 100% 纯 C#，**绝对禁止**引入 `UnityEngine` 命名空间。
    - 不继承 `MonoBehaviour`，无 `Vector3`，无协程。数学运算使用纯 C# 结构体 `SVector2Int`（地形无高度差，2D 坐标全程够用）。
 2. **数据驱动 (Data-Driven)**
    - 彻底抛弃硬编码。所有机兵属性、技能载荷、地形消耗矩阵、天赋树节点，全量由 **Luban 配置表** 驱动。
@@ -37,9 +37,9 @@
 5. **PVP 服务端权威 (Server-Authoritative)**
    - 回合制战棋不采用帧同步。PVP 走**服务端权威**模式：服务端跑核心逻辑（唯一计算真相），客户端只负责提交指令 + 播放表现。
    - 因此**浮点数 (float) 可安全使用**，无需引入定点数。`BattleRNG` 种子由服务端持有，客户端无权生成随机数。
-   - 前提：严守"无头核心"，使 `MechStorm.Core` 能直接搬到 .NET 服务端运行。
+   - 前提：严守"无头核心"，使 `MechStorm.Battle` 能直接搬到 .NET 服务端运行。
 6. **P0 即建程序集边界 (Assembly Boundary from Day One)**
-   - P0 阶段就建立 `MechStorm.Core.asmdef`，不引用 `UnityEngine`。结构先对，内容再逐步填充。
+   - P0 阶段就建立 `MechStorm.Battle.asmdef`，不引用 `UnityEngine`。结构先对，内容再逐步填充。
    - **禁止**把战斗逻辑混入 `MonoBehaviour`——哪怕原型阶段也不行。P0 的表现层允许脏耦合，但逻辑层边界必须干净。
 
 ---
@@ -270,8 +270,8 @@
 | 领域 | 选型 | 说明 |
 |------|------|------|
 | 底层框架 | TEngine（基于 UGF） | P2 Sprint 4 接入；P0/P1 裸 MonoBehaviour 开发原型 |
-| 热更新方案 | **HybridCLR**（全栈纯 C#） | 弃用 Lua，实现 Core.dll 与 View.dll 双端 DLL 替换热更 |
-| UI 架构 | 纯 C# MVP 模式 | `MechStorm.View` 的 Presenter 强类型绑定 `MechStorm.Core` 数据模型 |
+| 热更新方案 | **HybridCLR**（全栈纯 C#） | 弃用 Lua，实现 `MechStorm.Battle.dll` 与 `MechStorm.Presentation.dll` 双端 DLL 替换热更；独立 asmdef 必须加入 `UpdateSetting.HotUpdateAssemblies` |
+| UI 架构 | 纯 C# MVP 模式 | `MechStorm.Presentation` 的 Presenter 强类型绑定 `MechStorm.Battle` 数据模型 |
 | 配表工具 | Luban | Excel 导出 JSON + C# 对象 |
 | 资源管理 | YooAsset | 异步 Bundle 加载 |
 | 数值类型 | **浮点数 (float)** | PVP 走服务端权威，无需定点数 |
@@ -294,7 +294,7 @@
 
 | 任务 | 内容 | 备注 |
 |------|------|------|
-| Task 1.0 | 建立 `MechStorm.Core.asmdef`，不引用 `UnityEngine`；建 `MechStorm.View.asmdef` 引用 Core | 结构先行，逻辑与 View 隔离开，哪怕 Core 里只有一个空类 |
+| Task 1.0 | 建立 `MechStorm.Battle.asmdef`，不引用 `UnityEngine`；建 `MechStorm.Presentation.asmdef` 引用 Battle | 结构先行，逻辑与 Unity 表现层隔离开，哪怕 Battle 里只有一个空类 |
 | Task 1.1 | 基础数据结构：`SVector2Int`（平面坐标）、`MechPart` 枚举 | 坐标系为 2D 平面；障碍物高度（`ObstacleHeight: Low/High`）存 `GridCell`，决定飞行单位通行合法性，不影响坐标维度 |
 | Task 1.2 | 简单方格拓扑：`SquareGrid`，提供邻居查询与曼哈顿距离 | 不做接口隔离，先求能用 |
 | Task 1.3 | 基础 BFS 移动范围：给定移动力，返回可到达格子集合 | 不做 Cost Matrix，先用等代价 |
@@ -348,7 +348,7 @@
 | 任务 | 内容 |
 |------|------|
 | Task 4.0 | **接入 TEngine**：搭建 Procedure 骨架（启动→战斗→结算），迁移 P0 的 UI 到 UIForm；建立分层 EventBus——战场级 `EventDispatcher` 一个实例，每个 `CombatUnit` 持有独立 `EventDispatcher` + `GameEventMgr`（死亡时自动注销订阅） |
-| Task 4.1 | 提取 `MechStorm.Core` 程序集，彻底清除 `UnityEngine` 依赖 |
+| Task 4.1 | 提取/校验 `MechStorm.Battle` 程序集，彻底清除 `UnityEngine` 依赖；`MechStorm.Presentation` 仅负责 Unity 表现与 TEngine 适配 |
 | Task 4.2 | MVP 重构：建立 Presenter 层，逻辑层通过事件通知 View，切断直接引用 |
 | Task 4.3 | `GameplayAttribute` 完整实现：拦截器公式 `(Base+Add)×(1+Multiply)`，完整 `GameplayModifier` 系统 |
 | Task 4.4 | `SpatialManager` 三层空间索引：将地貌层、附着物层、占据层分离 |
@@ -385,7 +385,7 @@
 | Task 6.2 | 元件系统：触元件监听 `EventBus` 战斗事件，满足条件后判定应元件触发（概率/叠层），形成条件链 |
 | Task 6.3 | 潜能天赋 + 神经驱动树：局外天赋加点，影响 AP 循环量/技能效果，经 `TalentBridgeFactory` 转为 Infinite Modifier 注入 |
 | Task 6.4 | Utility AI：Action-Location Pair 双遍历 + 响应曲线打分，替换贪心 AI |
-| Task 6.5 | HybridCLR 热更接入：Core.dll 与 View.dll 双端 DLL 替换热更配置 |
+| Task 6.5 | HybridCLR 热更接入：将 `MechStorm.Battle.dll`、`MechStorm.Presentation.dll` 加入 `Assets/TEngine/Settings/UpdateSetting.asset` 的 `HotUpdateAssemblies`，并同步 HybridCLR Settings；构建时确认两个 DLL 均复制为 `.bytes` 热更资源 |
 | Task 6.6 | YooAsset 资源管理：异步 Bundle 加载，替换直接 Resources 加载 |
 | Task 6.7 | 实体状态透视仪：Odin Inspector 可视化 EventBus 日志与实体状态 |
 | Task 6.8 | 机兵品阶养成流程：部件合并/材料晋升逻辑，拆解产出四级模组材料 |
@@ -550,7 +550,7 @@ public class Modifier_ArmorMelt : GameplayModifier
 请扮演本项目的 **资深游戏客户端主程 / AI 编码助手 / Scrum Master**，严格遵守"无头核心"与"纯 C#"铁律。对话按以下工作流推进，**请勿一上来就狂扔代码**：
 
 1. **Step 1：破冰与架构答疑**
-   - 先确认已完全理解 `MechStorm.Core` 的无头限制与 GAS 变种核心思想。
+   - 先确认已完全理解 `MechStorm.Battle` 的无头限制与 GAS 变种核心思想。
    - 针对四个 [Spike 探针](#六技术探针-spikes)（六边形适配、特异性 Buff、PVP 同步、可视化工具），请用户挑选一个最想先聊的议题。
 2. **Step 2：深度推演**
    - 针对所选 Spike 展开深度技术脑暴，给出行业最佳实践与踩坑点，直到在架构思路上达成共识。

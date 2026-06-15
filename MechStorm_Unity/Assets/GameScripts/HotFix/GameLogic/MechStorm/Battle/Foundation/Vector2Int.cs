@@ -23,5 +23,7 @@ namespace MechStorm.Battle.Foundation
 
         public static bool operator ==(Vector2Int left, Vector2Int right) => left.Equals(right);
         public static bool operator !=(Vector2Int left, Vector2Int right) => !left.Equals(right);
+        public static Vector2Int operator +(Vector2Int left, Vector2Int right) => new(left.X + right.X, left.Y + right.Y);
+        public static Vector2Int operator -(Vector2Int left, Vector2Int right) => new(left.X - right.X, left.Y - right.Y);
     }
 }

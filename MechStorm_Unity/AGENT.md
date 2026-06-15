@@ -1,1 +1,3 @@
-- 使用 [CLAUDE.md](./CLAUDE.md) 
+- 使用 [CLAUDE.md](./CLAUDE.md)
+- 项目架构与开发主计划：[MechStorm (机兵风暴) - SRPG 战棋游戏架构与开发主计划.md](../MechStorm%20%28%E6%9C%BA%E5%85%B5%E9%A3%8E%E6%9A%B4%29%20-%20SRPG%20%E6%88%98%E6%A3%8B%E6%B8%B8%E6%88%8F%E6%9E%B6%E6%9E%84%E4%B8%8E%E5%BC%80%E5%8F%91%E4%B8%BB%E8%AE%A1%E5%88%92.md)（新会话请先阅读此文件，了解架构铁律、游戏规则与排期）
+- 当前开发进度：[DEVELOPMENT_PROGRESS.md](./DEVELOPMENT_PROGRESS.md)（新会话请阅读此文件，接续当前 Sprint、任务状态、决策与阻塞）

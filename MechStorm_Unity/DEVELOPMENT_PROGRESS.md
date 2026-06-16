@@ -39,7 +39,7 @@
   - 状态：已实现初版，待 Unity Test Runner 实跑 EditMode 测试
   - 完成标准：给定移动力返回可到达格子集合
   - 验证方式：`dotnet msbuild MechStorm.Battle.Tests.csproj /t:Build /p:Configuration=Debug /verbosity:minimal` 通过；需在 Unity Test Runner 跑 EditMode 测试
-  - 备注：已补 `GetReachablePositions` 与测试，当前仅支持等代价四方向移动，不含障碍、地形 Cost、ZOC、A*
+  - 备注：已补 `GetReachablePositions` 与测试，当前仅支持等代价四方向移动，不含障碍、地形 Cost、ZOC、A*；BFS 依赖 Queue 先进先出保证近距离格子先处理，首次访问即为最短步数
 
 - [ ] Task 1.4 实体壳结构：`PilotData` / `MechData` / `CombatUnit`
   - 状态：未开始

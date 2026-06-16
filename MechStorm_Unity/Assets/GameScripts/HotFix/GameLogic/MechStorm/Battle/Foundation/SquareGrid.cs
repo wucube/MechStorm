@@ -68,7 +68,8 @@ namespace MechStorm.Battle.Foundation
                 throw new ArgumentOutOfRangeException(nameof(range), range, "Range must be non-negative.");
             }
             
-            // BFS 队列保存待扩展的格子，visited 防止重复访问，distances 记录距离起点的步数。
+            // BFS 队列保存待扩展的格子；Queue 先进先出，保证先处理近距离格子。
+            // visited 防止重复访问，distances 记录距离起点的步数。
             var queue = new Queue<Vector2Int>();
             var visited = new HashSet<Vector2Int>();
             var distances = new Dictionary<Vector2Int, int>();

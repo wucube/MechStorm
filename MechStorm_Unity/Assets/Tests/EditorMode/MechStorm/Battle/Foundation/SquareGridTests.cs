@@ -83,5 +83,67 @@ namespace MechStorm.Battle.Tests.Foundation
             Assert.AreEqual(7, grid.GetManhattanDistance(new Vector2Int(0, 0), new Vector2Int(3, 4)));
             Assert.AreEqual(7, grid.GetManhattanDistance(new Vector2Int(3, 4), new Vector2Int(0, 0)));
         }
+
+        [Test]
+        public void GetReachablePositions_ReturnsStartOnly_WhenRangeIsZero()
+        {
+            var grid = new SquareGrid(10, 10);
+
+            var positions = grid.GetReachablePositions(new Vector2Int(5, 5), 0);
+
+            Assert.AreEqual(1, positions.Count);
+            Assert.IsTrue(positions.Contains(new Vector2Int(5, 5)));
+        }
+
+        [Test]
+        public void GetReachablePositions_ReturnsFivePositions_WhenRangeIsOneAndStartIsCenter()
+        {
+            var grid = new SquareGrid(10, 10);
+
+            var positions = grid.GetReachablePositions(new Vector2Int(5, 5), 1);
+
+            Assert.AreEqual(5, positions.Count);
+            Assert.IsTrue(positions.Contains(new Vector2Int(5, 5)));
+            Assert.IsTrue(positions.Contains(new Vector2Int(5, 6)));
+            Assert.IsTrue(positions.Contains(new Vector2Int(5, 4)));
+            Assert.IsTrue(positions.Contains(new Vector2Int(4, 5)));
+            Assert.IsTrue(positions.Contains(new Vector2Int(6, 5)));
+        }
+
+        [Test]
+        public void GetReachablePositions_ReturnsThirteenPositions_WhenRangeIsTwoAndStartIsCenter()
+        {
+            var grid = new SquareGrid(10, 10);
+
+            var positions = grid.GetReachablePositions(new Vector2Int(5, 5), 2);
+
+            Assert.AreEqual(13, positions.Count);
+            Assert.IsTrue(positions.All(position => grid.GetManhattanDistance(new Vector2Int(5, 5), position) <= 2));
+        }
+
+        [Test]
+        public void GetReachablePositions_ClipsPositions_WhenStartIsCorner()
+        {
+            var grid = new SquareGrid(10, 10);
+
+            var positions = grid.GetReachablePositions(new Vector2Int(0, 0), 2);
+
+            Assert.AreEqual(6, positions.Count);
+            Assert.IsTrue(positions.Contains(new Vector2Int(0, 0)));
+            Assert.IsTrue(positions.Contains(new Vector2Int(0, 1)));
+            Assert.IsTrue(positions.Contains(new Vector2Int(1, 0)));
+            Assert.IsTrue(positions.Contains(new Vector2Int(0, 2)));
+            Assert.IsTrue(positions.Contains(new Vector2Int(1, 1)));
+            Assert.IsTrue(positions.Contains(new Vector2Int(2, 0)));
+        }
+
+        [Test]
+        public void GetReachablePositions_ThrowsException_WhenInputIsInvalid()
+        {
+            var grid = new SquareGrid(10, 10);
+
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => grid.GetReachablePositions(new Vector2Int(-1, 0), 1));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => grid.GetReachablePositions(new Vector2Int(0, 0), -1));
+        }
     }
 }

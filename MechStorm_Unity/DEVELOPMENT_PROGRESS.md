@@ -4,8 +4,8 @@
 
 - 当前里程碑：P0 / Sprint 1
 - 当前任务：Task 1.3 基础 BFS 移动范围
-- 当前状态：未开始
-- 最后更新：2026-06-15
+- 当前状态：进行中
+- 最后更新：2026-06-16
 
 ## 状态约定
 
@@ -35,11 +35,11 @@
   - 验证方式：`dotnet msbuild MechStorm.Battle.Tests.csproj /t:Build /p:Configuration=Debug /verbosity:minimal` 通过；EditMode 测试用例已覆盖边界、邻居数量、曼哈顿距离
   - 备注：已添加 `Vector2IntTests` 与 `SquareGridTests`；已修复非法尺寸校验、邻居集合容量、曼哈顿距离绝对值；后续可在 Unity Test Runner 实跑确认
 
-- [ ] Task 1.3 基础 BFS 移动范围
-  - 状态：未开始
+- [~] Task 1.3 基础 BFS 移动范围
+  - 状态：已实现初版，待 Unity Test Runner 实跑 EditMode 测试
   - 完成标准：给定移动力返回可到达格子集合
-  - 验证方式：基础单元测试或临时验证脚本覆盖阻挡与边界
-  - 备注：
+  - 验证方式：`dotnet msbuild MechStorm.Battle.Tests.csproj /t:Build /p:Configuration=Debug /verbosity:minimal` 通过；需在 Unity Test Runner 跑 EditMode 测试
+  - 备注：已补 `GetReachablePositions` 与测试，当前仅支持等代价四方向移动，不含障碍、地形 Cost、ZOC、A*
 
 - [ ] Task 1.4 实体壳结构：`PilotData` / `MechData` / `CombatUnit`
   - 状态：未开始
@@ -93,6 +93,6 @@
 
 ## 下一步
 
-1. 开始 Task 1.3：实现基础 BFS 移动范围。
-2. 设计最小 API：给定起点与移动力，返回可到达格子集合。
-3. 继续保持 `MechStorm.Battle` 纯 C#，暂不引入地形 Cost、ZOC、A*。
+1. 在 Unity Test Runner 运行 `MechStorm.Battle.Tests` 的 EditMode 测试。
+2. 若全部通过，将 Task 1.3 标记完成。
+3. 进入 Task 1.4：`PilotData` / `MechData` / `CombatUnit` 实体壳结构。

@@ -3,9 +3,9 @@
 ## 当前阶段
 
 - 当前里程碑：P0 / Sprint 1
-- 当前任务：Task 1.6 基础攻击结算
+- 当前任务：Task 1.7 最简 Unity 表现层
 - 当前状态：未开始
-- 最后更新：2026-06-17
+- 最后更新：2026-06-18
 
 ## 状态约定
 
@@ -53,11 +53,11 @@
   - 验证方式：`dotnet msbuild MechStorm.Battle.Tests.csproj /t:Build /p:Configuration=Debug /verbosity:minimal` 通过；Unity Test Runner EditMode 测试已通过
   - 备注：已由开发者实现初版，AI 做 Review 与小修；P0 暂不接入行动配额、事件系统、AI 决策与 TEngine Procedure；当前默认玩家先手仅服务单人 P0 原型，后续如需敌人先手可给构造函数增加初始阶段参数
 
-- [ ] Task 1.6 基础攻击结算
-  - 状态：未开始
+- [x] Task 1.6 基础攻击结算
+  - 状态：已完成
   - 完成标准：相邻格可攻击，固定伤害，HP 归零死亡
-  - 验证方式：战斗核心验证
-  - 备注：
+  - 验证方式：`dotnet msbuild MechStorm.Battle.Tests.csproj /t:Build /p:Configuration=Debug /verbosity:minimal` 通过；Unity Test Runner EditMode 测试已通过
+  - 备注：已拆分 `PilotData` / `PilotRuntime`、`MechData` / `MechRuntime`；`MechRuntime` 已支持扣耐久、耐久归零与销毁状态；`AttackResolver` 已支持相邻格固定伤害与非相邻异常；相邻距离使用命名常量表达业务含义
 
 - [ ] Task 1.7 最简 Unity 表现层
   - 状态：未开始
@@ -94,6 +94,8 @@
 | 2026-06-13 | 使用独立进度文件，不直接修改主计划 | 主计划保持蓝图稳定，进度文件记录执行状态 | 新会话需读取 `AGENT.md`、主计划、进度文件 |
 | 2026-06-15 | Battle 核心坐标类型命名为 `Vector2Int`，不改为 `SVector2Int` | 保持简洁；若表现层需要 Unity 类型，则显式写 `UnityEngine.Vector2Int` | Battle 内默认使用 `MechStorm.Battle.Foundation.Vector2Int`，跨层代码需避免省略命名空间导致歧义 |
 | 2026-06-17 | AI 新建 Unity 文件或目录时不手写 `.meta` 文件 | `.meta` 应由 Unity Editor 自动生成，避免 GUID / 导入配置不一致 | AI 可创建源码文件，但 `.meta` 等用户打开 Unity 后自动生成，再由 AI 检查是否一并提交 |
+| 2026-06-18 | 采用 `Data + Runtime` 命名区分静态数据与运行时数据 | `Data` 表示静态基础数据，`Runtime` 表示某场战斗中会变化的实例状态 | `PilotData` / `MechData` 不承载当前值，当前 AP / 当前耐久放入 `PilotRuntime` / `MechRuntime` |
+| 2026-06-18 | 业务含义数字使用命名常量，坐标方向字面值集中管理 | `1` 在攻击距离中表示“相邻格”，属于业务规则；方向向量中的 `1/-1` 表示坐标单位，可集中在方向数组中 | `AttackResolver` 使用局部常量表达相邻距离；后续若引入武器/技能范围，再迁移到 `Data` 配置 |
 
 ## 阻塞与风险
 
@@ -102,6 +104,6 @@
 
 ## 下一步
 
-1. 开始 Task 1.6：基础攻击结算。
-2. P0 仅支持相邻格攻击、固定伤害、耐久归零死亡。
-3. 暂不引入命中率、RNG、防御公式、部位破坏、技能与 AP 消耗。
+1. 开始 Task 1.7：最简 Unity 表现层。
+2. P0 表现层目标：Cube 占位模型、点击移动、血条 Slider。
+3. 保持 Battle 纯 C#，表现层通过 `MechStorm.Presentation` 调用 Battle。

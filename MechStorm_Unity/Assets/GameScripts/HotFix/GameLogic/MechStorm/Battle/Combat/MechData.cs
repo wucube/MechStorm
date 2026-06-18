@@ -9,18 +9,15 @@ namespace MechStorm.Battle.Combat
         public int Attack { get; }
         
         public int MaxDurability { get; }
-        
-        public int CurrentDurability { get; }
-        
+
         public int MoveRange { get; }
 
-        public MechData(int id, string name, int attack, int maxDurability, int currentDurability, int moveRange)
+        public MechData(int id, string name, int attack, int maxDurability, int moveRange)
         {
             Id = id;
             Name = name;
             Attack = attack;
             MaxDurability = maxDurability;
-            CurrentDurability = currentDurability;
             MoveRange = moveRange;
         }
     }

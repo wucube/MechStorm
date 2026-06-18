@@ -7,15 +7,12 @@ namespace MechStorm.Battle.Combat
         public string Name { get; }
         
         public int MaxActionPoint { get; }
-        
-        public int CurrentActionPoint { get; }
 
-        public PilotData(int id, string name, int maxActionPoint, int currentActionPoint)
+        public PilotData(int id, string name, int maxActionPoint)
         {
             Id = id;
             Name = name;
             MaxActionPoint = maxActionPoint;
-            CurrentActionPoint = currentActionPoint;
         }
     }
 }

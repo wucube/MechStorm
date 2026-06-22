@@ -106,6 +106,53 @@ namespace MechStorm.Battle.Tests.Combat
         }
 
         [Test]
+        public void CombatUnitFactory_CreatesUnitWithProvidedDataAndPosition()
+        {
+            var factory = new CombatUnitFactory();
+            var pilot = new PilotData(1, "Test Pilot", 10);
+            var mech = new MechData(101, "Test Mech", 25, 120, 5);
+            var position = new Vector2Int(2, 3);
+
+            var unit = factory.Create(pilot, mech, position);
+
+            Assert.AreSame(pilot, unit.Pilot);
+            Assert.AreSame(mech, unit.Mech);
+            Assert.AreEqual(position, unit.Position);
+        }
+
+        [Test]
+        public void CombatUnitFactory_InitializesRuntimeFromData()
+        {
+            var factory = new CombatUnitFactory();
+            var pilot = new PilotData(1, "Test Pilot", 10);
+            var mech = new MechData(101, "Test Mech", 25, 120, 5);
+
+            var unit = factory.Create(pilot, mech, new Vector2Int(2, 3));
+
+            Assert.AreEqual(10, unit.PilotRuntime.CurrentActionPoint);
+            Assert.AreEqual(120, unit.MechRuntime.CurrentDurability);
+        }
+
+        [Test]
+        public void CombatUnitFactory_CreatesIndependentRuntimeForEachUnit()
+        {
+            var factory = new CombatUnitFactory();
+            var pilot = new PilotData(1, "Test Pilot", 10);
+            var mech = new MechData(101, "Test Mech", 25, 120, 5);
+
+            var firstUnit = factory.Create(pilot, mech, new Vector2Int(2, 3));
+            var secondUnit = factory.Create(pilot, mech, new Vector2Int(3, 3));
+
+            Assert.AreNotSame(firstUnit.PilotRuntime, secondUnit.PilotRuntime);
+            Assert.AreNotSame(firstUnit.MechRuntime, secondUnit.MechRuntime);
+
+            firstUnit.MechRuntime.TakeDamage(25);
+
+            Assert.AreEqual(95, firstUnit.MechRuntime.CurrentDurability);
+            Assert.AreEqual(120, secondUnit.MechRuntime.CurrentDurability);
+        }
+
+        [Test]
         public void MoveTo_UpdatesPosition()
         {
             var pilot = new PilotData(1, "Test Pilot", 10);

@@ -1,0 +1,22 @@
+{
+    "name": "MechStorm.Presentation.Tests",
+    "rootNamespace": "MechStorm.Presentation.Tests",
+    "references": [
+        "GUID:3c6b6bbfead94374fb3c2c3eb39f7fd8",
+        "GUID:ae8c477d00715ed40a0b8069ec4a64aa"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

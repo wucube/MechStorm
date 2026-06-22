@@ -3,9 +3,9 @@
 ## 当前阶段
 
 - 当前里程碑：P0 / Sprint 1
-- 当前任务：Task 1.7 最简 Unity 表现层
-- 当前状态：未开始
-- 最后更新：2026-06-18
+- 当前任务：Task 1.7.1 坐标转换器
+- 当前状态：进行中
+- 最后更新：2026-06-22
 
 ## 状态约定
 
@@ -60,10 +60,46 @@
   - 备注：已拆分 `PilotData` / `PilotRuntime`、`MechData` / `MechRuntime`；`MechRuntime` 已支持扣耐久、耐久归零与销毁状态；`AttackResolver` 已支持相邻格固定伤害与非相邻异常；相邻距离使用命名常量表达业务含义
 
 - [ ] Task 1.7 最简 Unity 表现层
+  - 状态：进行中，已拆分
+  - 完成标准：完成 1.7.1~1.7.6 子任务后，能在 Unity 中看到格子、单位、点击移动与血条变化
+  - 验证方式：Unity Play Mode 手动验证；纯 C# 辅助逻辑优先补 EditMode 测试
+  - 备注：进入表现层前已补 `CombatUnitFactory`，用于由 `PilotData` / `MechData` / 初始位置创建逻辑战斗单位，并自动初始化独立的 `PilotRuntime` / `MechRuntime`；相关 EditMode 测试已通过；表现层保持在 `MechStorm.Presentation`，不要让 Battle 引用 Unity
+
+- [~] Task 1.7.1 坐标转换器：`GridCoordinateConverter`
+  - 状态：已实现，待 Unity Test Runner 实跑 Presentation EditMode 测试
+  - 完成标准：支持 `Battle.Foundation.Vector2Int` 与 `UnityEngine.Vector3` 双向转换，包含 `cellSize`、`origin`
+  - 验证方式：`dotnet msbuild MechStorm.Presentation.csproj /t:Build /p:Configuration=Debug /verbosity:minimal` 通过；已新增 Presentation EditMode 测试，待 Unity Test Runner 实跑
+  - 备注：这是 Presentation 适配层，不能放进 Battle；`origin` 使用 `UnityEngine.Vector3` 表示整个网格左下角世界坐标，`GridToWorld` 返回格子中心点，`WorldToGrid` 返回世界点所在格子；注意避免与 `UnityEngine.Vector2Int` 命名冲突
+
+- [ ] Task 1.7.2 格子地面显示：`GridView` / `CellView`
   - 状态：未开始
-  - 完成标准：Cube 占位模型，点击移动，血条 Slider
-  - 验证方式：Unity Play Mode 手动验证
-  - 备注：
+  - 完成标准：根据 `SquareGrid` 生成可见格子地面，P0 可使用薄 Cube 占位
+  - 验证方式：Unity Play Mode 手动验证格子数量、位置、尺寸正确
+  - 备注：先不做复杂材质、地图资源、地形 Cost 与障碍
+
+- [ ] Task 1.7.3 单位显示：`CombatUnitView`
+  - 状态：未开始
+  - 完成标准：用 Cube 显示 `CombatUnit`，能根据 `CombatUnit.Position` 同步世界坐标
+  - 验证方式：Unity Play Mode 手动验证单位出现在对应格子
+  - 备注：View 可以持有 `CombatUnit` 引用，但不要把战斗规则写进 View
+
+- [ ] Task 1.7.4 输入与射线检测：`BoardInputController`
+  - 状态：未开始
+  - 完成标准：鼠标点击通过 `Physics.Raycast` 得到格子世界坐标，并转换为 Battle 网格坐标
+  - 验证方式：Unity Play Mode 手动验证点击不同格子能得到正确坐标
+  - 备注：射线检测属于 Presentation；逻辑层只接收转换后的网格坐标
+
+- [ ] Task 1.7.5 点击移动闭环：`BattlePresentationController`
+  - 状态：未开始
+  - 完成标准：选择单位后点击可达格子，调用 Battle 逻辑移动单位，并同步 `CombatUnitView`
+  - 验证方式：Unity Play Mode 手动验证单位能移动到可达格子，不可达格子不移动
+  - 备注：P0 可先用单个玩家单位；暂不做路径动画、A*、障碍和单位占用表
+
+- [ ] Task 1.7.6 最简血条：`UnitHealthBarView`
+  - 状态：未开始
+  - 完成标准：显示 `CurrentDurability / MaxDurability`，攻击或扣血后可刷新
+  - 验证方式：Unity Play Mode 手动验证血条数值随耐久变化
+  - 备注：P0 可用 World Space Slider 或简单 UI 占位；暂不接 TEngine UIWindow
 
 ## P1 / Sprint 2~3：核心机制深化
 
@@ -104,6 +140,6 @@
 
 ## 下一步
 
-1. 开始 Task 1.7：最简 Unity 表现层。
-2. P0 表现层目标：Cube 占位模型、点击移动、血条 Slider。
-3. 保持 Battle 纯 C#，表现层通过 `MechStorm.Presentation` 调用 Battle。
+1. 在 Unity Test Runner 运行 `MechStorm.Presentation.Tests` 的 EditMode 测试。
+2. 若测试全绿，将 Task 1.7.1 标记完成。
+3. 后续进入 Task 1.7.2：格子地面显示。

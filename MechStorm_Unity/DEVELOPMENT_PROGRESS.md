@@ -61,7 +61,7 @@
 
 - [ ] Task 1.7 最简 Unity 表现层
   - 状态：进行中，已拆分
-  - 完成标准：完成 1.7.1~1.7.6 子任务后，能在 Unity 中看到格子、单位、点击移动与血条变化
+  - 完成标准：完成 1.7.1~1.7.7 子任务后，能在 Unity 中看到格子、单位、点击移动与血条变化
   - 验证方式：Unity Play Mode 手动验证；纯 C# 辅助逻辑优先补 EditMode 测试
   - 备注：进入表现层前已补 `CombatUnitFactory`，用于由 `PilotData` / `MechData` / 初始位置创建逻辑战斗单位，并自动初始化独立的 `PilotRuntime` / `MechRuntime`；相关 EditMode 测试已通过；表现层保持在 `MechStorm.Presentation`，不要让 Battle 引用 Unity
 
@@ -69,33 +69,39 @@
   - 状态：已实现，待 Unity Test Runner 实跑 Presentation EditMode 测试
   - 完成标准：支持 `Battle.Foundation.Vector2Int` 与 `UnityEngine.Vector3` 双向转换，包含 `cellSize`、`origin`
   - 验证方式：`dotnet msbuild MechStorm.Presentation.csproj /t:Build /p:Configuration=Debug /verbosity:minimal` 通过；已新增 Presentation EditMode 测试，待 Unity Test Runner 实跑
-  - 备注：这是 Presentation 适配层，不能放进 Battle；`origin` 使用 `UnityEngine.Vector3` 表示整个网格左下角世界坐标，`GridToWorld` 返回格子中心点，`WorldToGrid` 返回世界点所在格子；注意避免与 `UnityEngine.Vector2Int` 命名冲突
+  - 备注：这是 Presentation 适配层，不能放进 Battle；`origin` 使用 `UnityEngine.Vector3` 表示整个网格左下角世界坐标，`cellSize` 表示单格 Unity 世界尺寸，后续需抽到外部作为转换器与棋盘渲染器共享的公共参数；`GridToWorld` 返回格子中心点，`WorldToGrid` 返回世界点所在格子；注意避免与 `UnityEngine.Vector2Int` 命名冲突
 
-- [ ] Task 1.7.2 格子地面显示：`GridView` / `CellView`
+- [ ] Task 1.7.2 棋盘显示：`BattleBoardRenderer` / `CellView`
   - 状态：未开始
   - 完成标准：根据 `SquareGrid` 生成可见格子地面，P0 可使用薄 Cube 占位
   - 验证方式：Unity Play Mode 手动验证格子数量、位置、尺寸正确
-  - 备注：先不做复杂材质、地图资源、地形 Cost 与障碍
+  - 备注：先不做复杂材质、地图资源、地形 Cost 与障碍；P0 可先用一个缩放后的 Plane 或薄 Cube 表示棋盘，`CellView` 可选；TODO：将 `cellSize` / `origin` 抽到外部公共配置或启动参数，供 `GridCoordinateConverter` 与 `BattleBoardRenderer` 共同使用
 
 - [ ] Task 1.7.3 单位显示：`CombatUnitView`
   - 状态：未开始
   - 完成标准：用 Cube 显示 `CombatUnit`，能根据 `CombatUnit.Position` 同步世界坐标
   - 验证方式：Unity Play Mode 手动验证单位出现在对应格子
-  - 备注：View 可以持有 `CombatUnit` 引用，但不要把战斗规则写进 View
+  - 备注：一个 `CombatUnitView` 只管理一个 `CombatUnit` 的表现，可持有单位引用和自身 `Transform`；View 只同步位置、颜色、选中态与后续血条挂点，不判断移动是否合法，也不写战斗规则
 
 - [ ] Task 1.7.4 输入与射线检测：`BoardInputController`
   - 状态：未开始
   - 完成标准：鼠标点击通过 `Physics.Raycast` 得到格子世界坐标，并转换为 Battle 网格坐标
   - 验证方式：Unity Play Mode 手动验证点击不同格子能得到正确坐标
-  - 备注：射线检测属于 Presentation；逻辑层只接收转换后的网格坐标
+  - 备注：射线检测属于 Presentation；逻辑层只接收转换后的网格坐标；该控制器只负责输入采集与坐标转换，不选择单位、不执行移动
 
-- [ ] Task 1.7.5 点击移动闭环：`BattlePresentationController`
+- [ ] Task 1.7.5 移动规则控制器：`BattleMovementController`
   - 状态：未开始
-  - 完成标准：选择单位后点击可达格子，调用 Battle 逻辑移动单位，并同步 `CombatUnitView`
-  - 验证方式：Unity Play Mode 手动验证单位能移动到可达格子，不可达格子不移动
-  - 备注：P0 可先用单个玩家单位；暂不做路径动画、A*、障碍和单位占用表
+  - 完成标准：输入 `CombatUnit`、目标格与 `SquareGrid` 后，能判断目标格是否在移动范围内；合法时调用 `CombatUnit.MoveTo(target)`，非法时保持原位置
+  - 验证方式：优先补 EditMode 测试覆盖可达移动、不可达不移动、越界不移动；必要时再做 Unity Play Mode 手动验证
+  - 备注：这是移动规则入口，建议放在 Battle 逻辑层或纯 C# 可测试层；P0 复用现有 BFS 移动范围，不做路径动画、A*、障碍、地形 Cost 和单位占用表
 
-- [ ] Task 1.7.6 最简血条：`UnitHealthBarView`
+- [ ] Task 1.7.6 表现层编排器：`BattlePresentationController`
+  - 状态：未开始
+  - 完成标准：串联单位选择、格子点击、移动规则控制器与 `CombatUnitView` 刷新，形成“选单位 → 点格子 → 合法移动 → 表现同步”的闭环
+  - 验证方式：Unity Play Mode 手动验证单位能移动到可达格子，不可达格子不移动
+  - 备注：P0 可先用单个玩家单位；该类只做流程编排，不直接实现移动规则，也不直接处理射线细节
+
+- [ ] Task 1.7.7 最简血条：`UnitHealthBarView`
   - 状态：未开始
   - 完成标准：显示 `CurrentDurability / MaxDurability`，攻击或扣血后可刷新
   - 验证方式：Unity Play Mode 手动验证血条数值随耐久变化

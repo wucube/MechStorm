@@ -6,7 +6,7 @@ namespace MechStorm.Presentation
 {
     public sealed class GridCoordinateConverter
     {
-        // 单个网格在 Unity 世界中的尺寸。
+        // 单个网格在 Unity 世界中的尺寸；需要与棋盘渲染器使用同一个公共参数。
         public float CellSize { get; }
 
         // 整个网格左下角在 Unity 世界中的坐标。

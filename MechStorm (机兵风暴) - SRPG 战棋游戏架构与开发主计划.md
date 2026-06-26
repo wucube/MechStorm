@@ -36,7 +36,7 @@
    - 核心逻辑修改状态必须生成 `Command` 压栈，并生成 `Snapshot` 支持 O(1) 悔棋。
 5. **PVP 服务端权威 (Server-Authoritative)**
    - 回合制战棋不采用帧同步。PVP 走**服务端权威**模式：服务端跑核心逻辑（唯一计算真相），客户端只负责提交指令 + 播放表现。
-   - 因此**浮点数 (float) 可安全使用**，无需引入定点数。`BattleRNG` 种子由服务端持有，客户端无权生成随机数。
+   - 因此无需因 PVP 引入完整定点数库；但战斗核心结算仍优先采用整数化规则，浮点数只用于表现层动画、插值、相机、特效和 UI 过渡。`BattleRNG` 种子由服务端持有，客户端无权生成随机数。
    - 前提：严守"无头核心"，使 `MechStorm.Battle` 能直接搬到 .NET 服务端运行。
 6. **P0 即建程序集边界 (Assembly Boundary from Day One)**
    - P0 阶段就建立 `MechStorm.Battle.asmdef`，不引用 `UnityEngine`。结构先对，内容再逐步填充。
@@ -114,7 +114,7 @@
    - **原型阶段处理：** P0~P2 战斗原型中所有机兵默认彩品阶、模组满级，以硬编码数值注入，不实现养成流程。
 9. **战斗持久化与录像 (Battle Persistence & Replay)**
    - **续战存档：** PVE 战斗中途强制退出（包括杀进程），重启后可恢复到退出前的战斗状态。实现原理：每次行动提交后将战场快照 + RNG 游标序列化写入本地磁盘；启动时检测未完成存档并加载恢复，复用 `MechSnapshot` 机制，仅切换存储介质。
-   - **战斗录像：** 战斗结束后可查看回放，并可分享至公共聊天频道。实现原理：战斗中记录完整 Command 序列 + 初始状态 + RNG 种子（不存画面），回放时重新执行序列；因 RNG 确定性，每次回放结果完全一致。本地回放不依赖服务器；分享功能需上传服务器生成链接。
+   - **战斗录像：** 战斗结束后可查看回放，并可分享至公共聊天频道。回放分两类：本地调试/本地复盘使用 Command Replay（初始状态 + Command 序列 + RNG 种子/游标，重新执行序列）；PVP、排行榜、防作弊或分享回放使用 Result Replay 或混合日志（Command + 服务端权威 Result），观看端按权威结果播放表现，不依赖本地重新结算。
 10. **攻击方式分类 (Attack Mode Classification)**
    - 所有攻击按两个维度交叉形成四种类型，决定哪些模组/元件词条生效：
 
@@ -274,7 +274,7 @@
 | UI 架构 | 纯 C# MVP 模式 | `MechStorm.Presentation` 的 Presenter 强类型绑定 `MechStorm.Battle` 数据模型 |
 | 配表工具 | Luban | Excel 导出 JSON + C# 对象 |
 | 资源管理 | YooAsset | 异步 Bundle 加载 |
-| 数值类型 | **浮点数 (float)** | PVP 走服务端权威，无需定点数 |
+| 数值类型 | **整数化战斗逻辑 + 表现层 float** | 核心结算用整数/万分比/整数倍率，PVP 服务端权威无需完整定点数库；float 仅用于表现层动画、插值、相机、特效和 UI |
 | GameplayTag 系统 | [GameplayTags](https://github.com/Alex-Rachel/GameplayTags) | 层级 Tag、整数索引高性能查找、内置 `GameplayTagRequirements` 条件匹配；Tag 需预注册 |
 | 调试工具 | Odin Inspector + TEngine Runtime Debugger | 数据可视化 + 事件与状态流日志 |
 
@@ -390,8 +390,8 @@
 | Task 6.7 | 实体状态透视仪：Odin Inspector 可视化 EventBus 日志与实体状态 |
 | Task 6.8 | 机兵品阶养成流程：部件合并/材料晋升逻辑，拆解产出四级模组材料 |
 | Task 6.9 | 模组系统：四级/八级/小模组词条配表驱动，`MechFactory` 装配时按品阶注入 Modifier；整套彩品阶解锁八模组满级额外词条 |
-| Task 6.10 | 战斗录像（本地）：战斗中记录完整 Command 序列 + 初始状态 + RNG 种子，战斗结束后序列化为本地文件，支持本地回放 |
-| Task 6.11 | 战斗录像（分享）：录像文件上传服务器，生成分享链接，支持在聊天频道分享并让他人下载回放 |
+| Task 6.10 | 战斗录像（本地 Command Replay）：战斗中记录完整 Command 序列 + 初始状态 + RNG 种子/游标，战斗结束后序列化为本地文件，支持本地回放与确定性验证 |
+| Task 6.11 | 战斗录像（分享 Result Replay / 混合日志）：上传服务器认可的 BattleLog，至少包含 Command + 权威 Result，生成分享链接，支持在聊天频道分享并让他人下载后按权威结果播放 |
 
 **关联探针：** [Spike 4.A 可视化工具](#spike-4a-纯代码驱动下的可视化工具)
 

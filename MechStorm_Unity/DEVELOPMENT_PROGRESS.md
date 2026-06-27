@@ -3,7 +3,7 @@
 ## 当前阶段
 
 - 当前里程碑：P0 / Sprint 1
-- 当前任务：Task 1.7.4 输入与射线检测
+- 当前任务：Task 1.7.6 表现层编排器
 - 当前状态：待开始
 - 最后更新：2026-06-27
 
@@ -83,17 +83,17 @@
   - 验证方式：Unity Play Mode 手动验证单位出现在对应格子；已确认运行时测试通过
   - 备注：一个 `CombatUnitVisual` 只管理一个 `CombatUnit` 的表现，可持有单位引用和自身 `Transform`；Visual 只同步位置、颜色、选中态与后续血条挂点，不判断移动是否合法，也不写战斗规则
 
-- [ ] Task 1.7.4 输入与射线检测：`BoardInputController`
-  - 状态：未开始
+- [x] Task 1.7.4 输入与射线检测：`BattleBoardInputter`
+  - 状态：已完成
   - 完成标准：鼠标点击通过 `Physics.Raycast` 得到格子世界坐标，并转换为 Battle 网格坐标
-  - 验证方式：Unity Play Mode 手动验证点击不同格子能得到正确坐标
-  - 备注：射线检测属于 Presentation；逻辑层只接收转换后的网格坐标；该控制器只负责输入采集与坐标转换，不选择单位、不执行移动
+  - 验证方式：Unity Play Mode 手动验证点击不同格子能得到正确坐标；已确认点击有日志输出
+  - 备注：射线检测属于 Presentation；逻辑层只接收转换后的网格坐标；该控制器只负责输入采集与坐标转换，不选择单位、不执行移动；当前命名为 `BattleBoardInputter`
 
-- [ ] Task 1.7.5 移动规则控制器：`BattleMovementController`
-  - 状态：未开始
+- [x] Task 1.7.5 移动规则控制器：`MovementResolver`
+  - 状态：已完成
   - 完成标准：输入 `CombatUnit`、目标格与 `SquareGrid` 后，能判断目标格是否在移动范围内；合法时调用 `CombatUnit.MoveTo(target)`，非法时保持原位置
-  - 验证方式：优先补 EditMode 测试覆盖可达移动、不可达不移动、越界不移动；必要时再做 Unity Play Mode 手动验证
-  - 备注：这是移动规则入口，建议放在 Battle 逻辑层或纯 C# 可测试层；P0 复用现有 BFS 移动范围，不做路径动画、A*、障碍、地形 Cost 和单位占用表
+  - 验证方式：EditMode 测试覆盖可达移动、不可达不移动、越界不移动、原地移动、空单位与空网格；已确认测试用例全绿
+  - 备注：这是移动规则入口，放在 Battle 逻辑层或纯 C# 可测试层；P0 复用现有 BFS 移动范围，不做路径动画、A*、障碍、地形 Cost 和单位占用表；命名采用 `MovementResolver`，与 `AttackResolver` 保持一致
 
 - [ ] Task 1.7.6 表现层编排器：`BattlePresentationController`
   - 状态：未开始
@@ -161,6 +161,6 @@
 
 ## 下一步
 
-1. 进入 Task 1.7.4：输入与射线检测。
-2. 设计 `BoardInputController` 的最小职责和接口。
-3. 在 Unity Play Mode 验证点击不同格子能得到正确 Battle 网格坐标。
+1. 进入 Task 1.7.6：表现层编排器。
+2. 设计 `BattlePresentationController` 的最小职责和接口。
+3. 串联 `BattleBoardInputter`、`MovementResolver` 与 `CombatUnitVisual.RefreshPosition()`，验证“点击合法格子后单位移动并刷新表现”。

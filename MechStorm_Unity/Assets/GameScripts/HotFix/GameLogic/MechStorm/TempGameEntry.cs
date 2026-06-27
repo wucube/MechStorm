@@ -20,11 +20,15 @@ namespace MechStorm.Presentation
         [SerializeField]
         private bool _showBoardDebugMarkers = true;
 
+        [SerializeField]
+        private Camera _camera;
+
         private Transform _playerA;
         private Transform _playerB;
         private BattleBoardRenderer _boardRenderer;
         private CombatUnitVisual _playerAVisual;
         private GridCoordinateConverter _coordConverter;
+        private BattleBoardInputter _boardInputter;
         
         private CombatUnitFactory  _factory;
         private TurnStateMachine _turnStateMachine;
@@ -57,6 +61,26 @@ namespace MechStorm.Presentation
             }
 
             CreatePlayerAVisual();
+            CreateBoardInputter();
+        }
+
+        void Update()
+        {
+            if (_boardInputter == null)
+            {
+                return;
+            }
+
+            if (_boardInputter.Tick(out Vector2Int gridPos, out Vector3 worldPos))
+            {
+                if (!IsInsideBoard(gridPos))
+                {
+                    Log.Warning($"[MechStorm] Board Input out of range: GridPosition: {gridPos}, WorldPosition: {worldPos}");
+                    return;
+                }
+
+                Log.Info($"[MechStorm] Board Input: GridPosition: {gridPos}, WorldPosition: {worldPos}");
+            }
         }
 
         private void LogBoardValidation()
@@ -112,6 +136,32 @@ namespace MechStorm.Presentation
                 $"World={worldPosition}, " +
                 $"HP={combatUnit.MechRuntime.CurrentDurability}/{combatUnit.Mech.MaxDurability}, " +
                 $"AP={combatUnit.PilotRuntime.CurrentActionPoint}/{combatUnit.Pilot.MaxActionPoint}");
+        }
+
+        private void CreateBoardInputter()
+        {
+            var camera = _camera != null ? _camera : Camera.main;
+            if (camera == null)
+            {
+                Log.Error("[MechStorm] BattleBoardInputter requires a camera.");
+                return;
+            }
+
+            if (!_plane.TryGetComponent<Collider>(out var boardCollider))
+            {
+                Log.Error("[MechStorm] BattleBoardInputter requires a collider on the board plane.");
+                return;
+            }
+
+            _boardInputter = new BattleBoardInputter(camera, boardCollider, _coordConverter);
+        }
+
+        private bool IsInsideBoard(Vector2Int gridPosition)
+        {
+            return gridPosition.X >= 0
+                   && gridPosition.X < _boardWidth
+                   && gridPosition.Y >= 0
+                   && gridPosition.Y < _boardHeight;
         }
     }
 }

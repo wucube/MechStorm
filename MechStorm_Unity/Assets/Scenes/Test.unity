@@ -349,11 +349,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _plane: {fileID: 317279695}
-  _boardWidth: 5
-  _boardHeight: 4
+  _boardWidth: 10
+  _boardHeight: 10
   _cellSize: 1
-  _boardOrigin: {x: 0, y: 0, z: 0}
+  _boardOrigin: {x: -5, y: 0, z: -5}
   _showBoardDebugMarkers: 1
+  _camera: {fileID: 439734056}
 --- !u!1 &1341193990
 GameObject:
   m_ObjectHideFlags: 0

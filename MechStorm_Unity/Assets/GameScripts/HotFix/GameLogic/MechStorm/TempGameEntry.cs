@@ -1,4 +1,5 @@
 using MechStorm.Battle.Combat;
+using TEngine;
 using UnityEngine;
 using Vector2Int = MechStorm.Battle.Foundation.Vector2Int;
 
@@ -33,13 +34,13 @@ namespace MechStorm.Presentation
         {
             if (_plane == null)
             {
-                Debug.LogError("[MechStorm] TempGameEntry requires a Plane transform.");
+                Log.Error("[MechStorm] TempGameEntry requires a Plane transform.");
                 return;
             }
 
             if (_boardWidth <= 0 || _boardHeight <= 0)
             {
-                Debug.LogError("[MechStorm] Board width and height must be greater than zero.");
+                Log.Error("[MechStorm] Board width and height must be greater than zero.");
                 return;
             }
 
@@ -67,9 +68,9 @@ namespace MechStorm.Presentation
             var firstCellCenter = _coordConverter.GridToWorld(new Vector2Int(0, 0));
             var lastCellCenter = _coordConverter.GridToWorld(new Vector2Int(_boardWidth - 1, _boardHeight - 1));
 
-            Debug.Log($"[MechStorm] Board expected scale: {expectedScale}, actual: {_plane.localScale}");
-            Debug.Log($"[MechStorm] Board expected position: {expectedPosition}, actual: {_plane.position}");
-            Debug.Log($"[MechStorm] Grid(0,0) center: {firstCellCenter}, Grid({_boardWidth - 1},{_boardHeight - 1}) center: {lastCellCenter}");
+            Log.Info($"[MechStorm] Board expected scale: {expectedScale}, actual: {_plane.localScale}");
+            Log.Info($"[MechStorm] Board expected position: {expectedPosition}, actual: {_plane.position}");
+            Log.Info($"[MechStorm] Grid(0,0) center: {firstCellCenter}, Grid({_boardWidth - 1},{_boardHeight - 1}) center: {lastCellCenter}");
         }
 
         private void CreateDebugMarker(string markerName, Vector2Int gridPosition, Color color)
@@ -105,7 +106,7 @@ namespace MechStorm.Presentation
 
         private void LogUnitStatus(CombatUnit combatUnit, Vector3 worldPosition)
         {
-            Debug.Log(
+            Log.Info(
                 $"[MechStorm] Unit={combatUnit.Pilot.Name}/{combatUnit.Mech.Name}, " +
                 $"Position=({combatUnit.Position.X},{combatUnit.Position.Y}), " +
                 $"World={worldPosition}, " +

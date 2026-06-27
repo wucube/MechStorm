@@ -313,7 +313,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 685082423}
-  - component: {fileID: 685082425}
   - component: {fileID: 685082424}
   m_Layer: 0
   m_Name: TempGameEntry
@@ -350,18 +349,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _plane: {fileID: 317279695}
---- !u!114 &685082425
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 685082422}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9cdc4a1084443e8408c7e46ec9e661c7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  _boardWidth: 5
+  _boardHeight: 4
+  _cellSize: 1
+  _boardOrigin: {x: 0, y: 0, z: 0}
+  _showBoardDebugMarkers: 1
 --- !u!1 &1341193990
 GameObject:
   m_ObjectHideFlags: 0

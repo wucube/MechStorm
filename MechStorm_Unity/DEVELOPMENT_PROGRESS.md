@@ -3,9 +3,9 @@
 ## 当前阶段
 
 - 当前里程碑：P0 / Sprint 1
-- 当前任务：Task 1.7.1 坐标转换器
-- 当前状态：进行中
-- 最后更新：2026-06-22
+- 当前任务：Task 1.7.3 单位显示
+- 当前状态：待开始
+- 最后更新：2026-06-27
 
 ## 状态约定
 
@@ -65,16 +65,16 @@
   - 验证方式：Unity Play Mode 手动验证；纯 C# 辅助逻辑优先补 EditMode 测试
   - 备注：进入表现层前已补 `CombatUnitFactory`，用于由 `PilotData` / `MechData` / 初始位置创建逻辑战斗单位，并自动初始化独立的 `PilotRuntime` / `MechRuntime`；相关 EditMode 测试已通过；表现层保持在 `MechStorm.Presentation`，不要让 Battle 引用 Unity
 
-- [~] Task 1.7.1 坐标转换器：`GridCoordinateConverter`
-  - 状态：已实现，待 Unity Test Runner 实跑 Presentation EditMode 测试
+- [x] Task 1.7.1 坐标转换器：`GridCoordinateConverter`
+  - 状态：已完成
   - 完成标准：支持 `Battle.Foundation.Vector2Int` 与 `UnityEngine.Vector3` 双向转换，包含 `cellSize`、`origin`
-  - 验证方式：`dotnet msbuild MechStorm.Presentation.csproj /t:Build /p:Configuration=Debug /verbosity:minimal` 通过；已新增 Presentation EditMode 测试，待 Unity Test Runner 实跑
+  - 验证方式：`dotnet msbuild MechStorm.Presentation.csproj /t:Build /p:Configuration=Debug /verbosity:minimal` 通过；Unity Test Runner Presentation EditMode 测试已通过
   - 备注：这是 Presentation 适配层，不能放进 Battle；`origin` 使用 `UnityEngine.Vector3` 表示整个网格左下角世界坐标，`cellSize` 表示单格 Unity 世界尺寸，后续需抽到外部作为转换器与棋盘渲染器共享的公共参数；`GridToWorld` 返回格子中心点，`WorldToGrid` 返回世界点所在格子；注意避免与 `UnityEngine.Vector2Int` 命名冲突
 
-- [ ] Task 1.7.2 棋盘显示：`BattleBoardRenderer` / `CellView`
-  - 状态：未开始
+- [x] Task 1.7.2 棋盘显示：`BattleBoardRenderer` / `CellView`
+  - 状态：已完成
   - 完成标准：根据 `SquareGrid` 生成可见格子地面，P0 可使用薄 Cube 占位
-  - 验证方式：Unity Play Mode 手动验证格子数量、位置、尺寸正确
+  - 验证方式：Unity Play Mode 手动验证格子数量、位置、尺寸正确；已确认棋盘坐标与 `GridCoordinateConverter` 对齐
   - 备注：先不做复杂材质、地图资源、地形 Cost 与障碍；P0 可先用一个缩放后的 Plane 或薄 Cube 表示棋盘，`CellView` 可选；TODO：将 `cellSize` / `origin` 抽到外部公共配置或启动参数，供 `GridCoordinateConverter` 与 `BattleBoardRenderer` 共同使用
 
 - [ ] Task 1.7.3 单位显示：`CombatUnitView`
@@ -148,6 +148,6 @@
 
 ## 下一步
 
-1. 在 Unity Test Runner 运行 `MechStorm.Presentation.Tests` 的 EditMode 测试。
-2. 若测试全绿，将 Task 1.7.1 标记完成。
-3. 后续进入 Task 1.7.2：格子地面显示。
+1. 进入 Task 1.7.3：单位显示。
+2. 实现 `CombatUnitView`，用 Cube 显示一个 `CombatUnit`。
+3. 根据 `CombatUnit.Position` 与 `GridCoordinateConverter` 同步单位世界坐标。

@@ -3,7 +3,7 @@
 ## 当前阶段
 
 - 当前里程碑：P0 / Sprint 1
-- 当前任务：Task 1.7.3 单位显示
+- 当前任务：Task 1.7.4 输入与射线检测
 - 当前状态：待开始
 - 最后更新：2026-06-27
 
@@ -77,11 +77,11 @@
   - 验证方式：Unity Play Mode 手动验证格子数量、位置、尺寸正确；已确认棋盘坐标与 `GridCoordinateConverter` 对齐
   - 备注：先不做复杂材质、地图资源、地形 Cost 与障碍；P0 可先用一个缩放后的 Plane 或薄 Cube 表示棋盘，`CellView` 可选；TODO：将 `cellSize` / `origin` 抽到外部公共配置或启动参数，供 `GridCoordinateConverter` 与 `BattleBoardRenderer` 共同使用
 
-- [ ] Task 1.7.3 单位显示：`CombatUnitView`
-  - 状态：未开始
+- [x] Task 1.7.3 单位显示：`CombatUnitVisual`
+  - 状态：已完成
   - 完成标准：用 Cube 显示 `CombatUnit`，能根据 `CombatUnit.Position` 同步世界坐标
-  - 验证方式：Unity Play Mode 手动验证单位出现在对应格子
-  - 备注：一个 `CombatUnitView` 只管理一个 `CombatUnit` 的表现，可持有单位引用和自身 `Transform`；View 只同步位置、颜色、选中态与后续血条挂点，不判断移动是否合法，也不写战斗规则
+  - 验证方式：Unity Play Mode 手动验证单位出现在对应格子；已确认运行时测试通过
+  - 备注：一个 `CombatUnitVisual` 只管理一个 `CombatUnit` 的表现，可持有单位引用和自身 `Transform`；Visual 只同步位置、颜色、选中态与后续血条挂点，不判断移动是否合法，也不写战斗规则
 
 - [ ] Task 1.7.4 输入与射线检测：`BoardInputController`
   - 状态：未开始
@@ -97,7 +97,7 @@
 
 - [ ] Task 1.7.6 表现层编排器：`BattlePresentationController`
   - 状态：未开始
-  - 完成标准：串联单位选择、格子点击、移动规则控制器与 `CombatUnitView` 刷新，形成“选单位 → 点格子 → 合法移动 → 表现同步”的闭环
+  - 完成标准：串联单位选择、格子点击、移动规则控制器与 `CombatUnitVisual` 刷新，形成“选单位 → 点格子 → 合法移动 → 表现同步”的闭环
   - 验证方式：Unity Play Mode 手动验证单位能移动到可达格子，不可达格子不移动
   - 备注：P0 可先用单个玩家单位；该类只做流程编排，不直接实现移动规则，也不直接处理射线细节
 
@@ -106,6 +106,18 @@
   - 完成标准：显示 `CurrentDurability / MaxDurability`，攻击或扣血后可刷新
   - 验证方式：Unity Play Mode 手动验证血条数值随耐久变化
   - 备注：P0 可用 World Space Slider 或简单 UI 占位；暂不接 TEngine UIWindow
+
+## 坐标系统约定
+
+- Battle 逻辑层使用 `MechStorm.Battle.Foundation.Vector2Int` 表示平面格子坐标。
+- `Vector2Int.X` 映射到 Unity 世界坐标 `x`。
+- `Vector2Int.Y` 映射到 Unity 世界坐标 `z`。
+- Unity 世界坐标 `y` 只表示表现高度，不进入当前 P0 战斗逻辑坐标。
+- `origin` 表示整张棋盘左下角边界点，不是 `Grid(0,0)` 的中心。
+- `GridCoordinateConverter.GridToWorld` 返回格子中心点。
+- 当 `origin = (0,0,0)` 且 `cellSize = 1` 时，`Grid(0,0)` 的中心是 `(0.5,0,0.5)`，`Grid(1,1)` 的中心是 `(1.5,0,1.5)`。
+- `WorldToGrid` 会把世界点转换为其所在格子；落在边界上的点按 `Mathf.FloorToInt` 规则归入右侧或上侧格子。
+- `CombatUnit.Position` 暂时保持二维格子坐标；`CombatUnitVisual` 通过额外高度偏移处理 Cube 或后续模型的离地高度。
 
 ## P1 / Sprint 2~3：核心机制深化
 
@@ -140,6 +152,7 @@
 | 2026-06-18 | 业务含义数字使用命名常量，坐标方向字面值集中管理 | `1` 在攻击距离中表示“相邻格”，属于业务规则；方向向量中的 `1/-1` 表示坐标单位，可集中在方向数组中 | `AttackResolver` 使用局部常量表达相邻距离；后续若引入武器/技能范围，再迁移到 `Data` 配置 |
 | 2026-06-26 | 战斗系统长期架构以轻量 GAS 变种为主干，借鉴 `GameObject + State + Attribute + Modifier + Trigger` 思路作为补充，按阶段渐进引入 | 该思路适合支撑后续机甲状态、装备、地形、触发器与复杂技能扩展；当前 P0 不应提前完整照搬，且该规划属于前期方案，后续可随玩法验证调整 | 新增 `BATTLE_ARCHITECTURE_ROADMAP.md` 作为长期拓展规划；P0 继续优先完成可玩闭环，后续按复杂度逐步引入 GameplayTag、GameplayAttribute、轻量 State、流程上下文、Modifier 与 Trigger |
 | 2026-06-26 | 战斗逻辑层优先采用整数化数值规则，浮点只用于表现层 | PVP 服务端权威结算、悔棋、续战、录像和回放都需要确定性；整数化概率、倍率、减免和取整策略更容易复现与校验 | 百分比、倍率、固伤率等用万分比或整数缩放表达；所有非整数结果必须声明取整时机和方式；定点数库暂不作为 P0 必需项，后续如出现实时 Lockstep 或连续物理逻辑再评估 |
+| 2026-06-27 | AI 默认只提供设计思路、职责划分、接口建议与验证方式，不直接修改代码 | 当前阶段开发者希望先自行实现代码，AI 作为方案讨论与校验辅助，避免未确认方案被提前写入项目 | 除非开发者明确要求“帮我实现 / 帮我改 / 提交”，AI 不主动编辑代码；若涉及文档记录、进度同步或提交，也应先确认意图 |
 
 ## 阻塞与风险
 
@@ -148,6 +161,6 @@
 
 ## 下一步
 
-1. 进入 Task 1.7.3：单位显示。
-2. 实现 `CombatUnitView`，用 Cube 显示一个 `CombatUnit`。
-3. 根据 `CombatUnit.Position` 与 `GridCoordinateConverter` 同步单位世界坐标。
+1. 进入 Task 1.7.4：输入与射线检测。
+2. 设计 `BoardInputController` 的最小职责和接口。
+3. 在 Unity Play Mode 验证点击不同格子能得到正确 Battle 网格坐标。

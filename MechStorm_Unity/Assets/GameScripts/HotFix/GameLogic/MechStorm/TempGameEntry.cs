@@ -22,11 +22,12 @@ namespace MechStorm.Presentation
         private Transform _playerA;
         private Transform _playerB;
         private BattleBoardRenderer _boardRenderer;
+        private CombatUnitVisual _playerAVisual;
         private GridCoordinateConverter _coordConverter;
         
         private CombatUnitFactory  _factory;
         private TurnStateMachine _turnStateMachine;
-        
+
         
         void Start()
         {
@@ -53,6 +54,8 @@ namespace MechStorm.Presentation
                 CreateDebugMarker("Grid(0,0)", new Vector2Int(0, 0), Color.green);
                 CreateDebugMarker("Grid(Max)", new Vector2Int(_boardWidth - 1, _boardHeight - 1), Color.red);
             }
+
+            CreatePlayerAVisual();
         }
 
         private void LogBoardValidation()
@@ -80,6 +83,34 @@ namespace MechStorm.Presentation
             {
                 renderer.material.color = color;
             }
+        }
+
+        private void CreatePlayerAVisual()
+        {
+            _factory = new CombatUnitFactory();
+
+            var pilot = new PilotData(1, "Player A", 3);
+            var mech = new MechData(1, "Training Mech", 10, 100, 3);
+            var combatUnit = _factory.Create(pilot, mech, new Vector2Int(1, 1));
+
+            var unitObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            unitObject.name = "PlayerA";
+            unitObject.transform.localScale = new Vector3(_cellSize * 0.6f, _cellSize, _cellSize * 0.6f);
+
+            _playerA = unitObject.transform;
+            _playerAVisual = new CombatUnitVisual(_playerA, combatUnit, _coordConverter, _playerA.localScale.y * 0.5f);
+            _playerAVisual.RefreshPosition();
+            LogUnitStatus(combatUnit, _playerA.position);
+        }
+
+        private void LogUnitStatus(CombatUnit combatUnit, Vector3 worldPosition)
+        {
+            Debug.Log(
+                $"[MechStorm] Unit={combatUnit.Pilot.Name}/{combatUnit.Mech.Name}, " +
+                $"Position=({combatUnit.Position.X},{combatUnit.Position.Y}), " +
+                $"World={worldPosition}, " +
+                $"HP={combatUnit.MechRuntime.CurrentDurability}/{combatUnit.Mech.MaxDurability}, " +
+                $"AP={combatUnit.PilotRuntime.CurrentActionPoint}/{combatUnit.Pilot.MaxActionPoint}");
         }
     }
 }

@@ -1,6 +1,7 @@
 using MechStorm.Battle.Combat;
 using TEngine;
 using UnityEngine;
+using SquareGrid = MechStorm.Battle.Foundation.SquareGrid;
 using Vector2Int = MechStorm.Battle.Foundation.Vector2Int;
 
 namespace MechStorm.Presentation
@@ -24,13 +25,14 @@ namespace MechStorm.Presentation
         private Camera _camera;
 
         private Transform _playerA;
-        private Transform _playerB;
         private BattleBoardRenderer _boardRenderer;
         private CombatUnitVisual _playerAVisual;
         private GridCoordinateConverter _coordConverter;
         private BattleBoardInputter _boardInputter;
+        private MovementResolver _movementResolver;
+        private BattlePresentationController _presentationController;
+        private CombatUnit _playerAUnit;
         
-        private CombatUnitFactory  _factory;
         private TurnStateMachine _turnStateMachine;
 
         
@@ -60,26 +62,22 @@ namespace MechStorm.Presentation
                 CreateDebugMarker("Grid(Max)", new Vector2Int(_boardWidth - 1, _boardHeight - 1), Color.red);
             }
 
+            CreatePlayerAUnit();
             CreatePlayerAVisual();
             CreateBoardInputter();
+            CreatePresentationController();
         }
 
         void Update()
         {
-            if (_boardInputter == null)
+            if (_presentationController == null)
             {
                 return;
             }
 
-            if (_boardInputter.Tick(out Vector2Int gridPos, out Vector3 worldPos))
+            if (_presentationController.Tick())
             {
-                if (!IsInsideBoard(gridPos))
-                {
-                    Log.Warning($"[MechStorm] Board Input out of range: GridPosition: {gridPos}, WorldPosition: {worldPos}");
-                    return;
-                }
-
-                Log.Info($"[MechStorm] Board Input: GridPosition: {gridPos}, WorldPosition: {worldPos}");
+                Log.Info($"[MechStorm] PlayerA moved to GridPosition: {_playerAUnit.Position}, WorldPosition: {_playerA.position}");
             }
         }
 
@@ -110,22 +108,25 @@ namespace MechStorm.Presentation
             }
         }
 
-        private void CreatePlayerAVisual()
+        private void CreatePlayerAUnit()
         {
-            _factory = new CombatUnitFactory();
-
+            var factory = new CombatUnitFactory();
             var pilot = new PilotData(1, "Player A", 3);
             var mech = new MechData(1, "Training Mech", 10, 100, 3);
-            var combatUnit = _factory.Create(pilot, mech, new Vector2Int(1, 1));
 
+            _playerAUnit = factory.Create(pilot, mech, new Vector2Int(1, 1));
+        }
+
+        private void CreatePlayerAVisual()
+        {
             var unitObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
             unitObject.name = "PlayerA";
             unitObject.transform.localScale = new Vector3(_cellSize * 0.6f, _cellSize, _cellSize * 0.6f);
 
             _playerA = unitObject.transform;
-            _playerAVisual = new CombatUnitVisual(_playerA, combatUnit, _coordConverter, _playerA.localScale.y * 0.5f);
-            _playerAVisual.RefreshPosition();
-            LogUnitStatus(combatUnit, _playerA.position);
+            _playerAVisual = new CombatUnitVisual(_playerA, _coordConverter, _playerA.localScale.y * 0.5f);
+            _playerAVisual.RefreshPosition(_playerAUnit.Position);
+            LogUnitStatus(_playerAUnit, _playerA.position);
         }
 
         private void LogUnitStatus(CombatUnit combatUnit, Vector3 worldPosition)
@@ -156,12 +157,21 @@ namespace MechStorm.Presentation
             _boardInputter = new BattleBoardInputter(camera, boardCollider, _coordConverter);
         }
 
-        private bool IsInsideBoard(Vector2Int gridPosition)
+        private void CreatePresentationController()
         {
-            return gridPosition.X >= 0
-                   && gridPosition.X < _boardWidth
-                   && gridPosition.Y >= 0
-                   && gridPosition.Y < _boardHeight;
+            if (_playerAUnit == null || _playerAVisual == null || _boardInputter == null)
+            {
+                Log.Error("[MechStorm] BattlePresentationController dependencies are not ready.");
+                return;
+            }
+
+            var grid = new SquareGrid(_boardWidth, _boardHeight);
+            _movementResolver = new MovementResolver(grid);
+            _presentationController = new BattlePresentationController(
+                _playerAUnit,
+                _playerAVisual,
+                _movementResolver,
+                _boardInputter);
         }
     }
 }

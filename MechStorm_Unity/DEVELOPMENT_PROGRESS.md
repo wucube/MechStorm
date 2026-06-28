@@ -3,7 +3,7 @@
 ## 当前阶段
 
 - 当前里程碑：P0 / Sprint 1
-- 当前任务：Task 1.7.6 表现层编排器
+- 当前任务：Task 1.7.7 最简血条
 - 当前状态：待开始
 - 最后更新：2026-06-27
 
@@ -95,11 +95,11 @@
   - 验证方式：EditMode 测试覆盖可达移动、不可达不移动、越界不移动、原地移动、空单位与空网格；已确认测试用例全绿
   - 备注：这是移动规则入口，放在 Battle 逻辑层或纯 C# 可测试层；P0 复用现有 BFS 移动范围，不做路径动画、A*、障碍、地形 Cost 和单位占用表；命名采用 `MovementResolver`，与 `AttackResolver` 保持一致
 
-- [ ] Task 1.7.6 表现层编排器：`BattlePresentationController`
-  - 状态：未开始
+- [x] Task 1.7.6 表现层编排器：`BattlePresentationController`
+  - 状态：已完成
   - 完成标准：串联单位选择、格子点击、移动规则控制器与 `CombatUnitVisual` 刷新，形成“选单位 → 点格子 → 合法移动 → 表现同步”的闭环
-  - 验证方式：Unity Play Mode 手动验证单位能移动到可达格子，不可达格子不移动
-  - 备注：P0 可先用单个玩家单位；该类只做流程编排，不直接实现移动规则，也不直接处理射线细节
+  - 验证方式：Unity Play Mode 手动验证单位能移动到可达格子，不可达格子不移动；已确认验收通过
+  - 备注：P0 先用单个玩家单位；该类只做流程编排，不直接实现移动规则，也不直接处理射线细节；移动插值、朝向变化和可移动范围高亮暂不纳入本任务
 
 - [ ] Task 1.7.7 最简血条：`UnitHealthBarView`
   - 状态：未开始
@@ -161,6 +161,6 @@
 
 ## 下一步
 
-1. 进入 Task 1.7.6：表现层编排器。
-2. 设计 `BattlePresentationController` 的最小职责和接口。
-3. 串联 `BattleBoardInputter`、`MovementResolver` 与 `CombatUnitVisual.RefreshPosition()`，验证“点击合法格子后单位移动并刷新表现”。
+1. 进入 Task 1.7.7：最简血条。
+2. 设计 `UnitHealthBarView` 的最小职责和接口。
+3. 先用简单占位显示 `CurrentDurability / MaxDurability`，攻击或扣血后可刷新。

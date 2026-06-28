@@ -23,21 +23,18 @@ namespace MechStorm.Presentation
 
         [SerializeField]
         private Camera _camera;
+        [SerializeField]
+        private int _debugDamage = 10;
 
         private Transform _playerA;
-        private BattleBoardRenderer _boardRenderer;
         private CombatUnitVisual _playerAVisual;
         private GridCoordinateConverter _coordConverter;
         private BattleBoardInputter _boardInputter;
-        private MovementResolver _movementResolver;
         private BattlePresentationController _presentationController;
         private CombatUnit _playerAUnit;
         private Transform _playerAHealthBarAnchor;
         private UnitHealthBarView _playerAHealthBarView;
-        
-        private TurnStateMachine _turnStateMachine;
 
-        
         void Start()
         {
             if (_plane == null)
@@ -52,38 +49,25 @@ namespace MechStorm.Presentation
                 return;
             }
 
-            _coordConverter = new GridCoordinateConverter(_cellSize, _boardOrigin);
-            _boardRenderer = new BattleBoardRenderer();
-            _boardRenderer.Initialize(_boardWidth, _boardHeight, _cellSize, _boardOrigin, _plane);
-
+            CreateBoard();
             LogBoardValidation();
-
-            if (_showBoardDebugMarkers)
-            {
-                CreateDebugMarker("Grid(0,0)", new Vector2Int(0, 0), Color.green);
-                CreateDebugMarker("Grid(Max)", new Vector2Int(_boardWidth - 1, _boardHeight - 1), Color.red);
-            }
-
-            CreatePlayerAUnit();
-            CreatePlayerAVisual();
-            CreatePlayerAHealthBar();
+            CreateDebugMarkers();
+            CreatePlayerA();
             CreateBoardInputter();
             CreatePresentationController();
         }
 
         void Update()
         {
-            if (_presentationController == null)
-            {
-                return;
-            }
+            TickPresentationController();
+            RefreshHealthBarFacing();
+        }
 
-            if (_presentationController.Tick())
-            {
-                Log.Info($"[MechStorm] PlayerA moved to GridPosition: {_playerAUnit.Position}, WorldPosition: {_playerA.position}");
-            }
-
-            _playerAHealthBarView?.RefreshFacing();
+        private void CreateBoard()
+        {
+            _coordConverter = new GridCoordinateConverter(_cellSize, _boardOrigin);
+            var boardRenderer = new BattleBoardRenderer();
+            boardRenderer.Initialize(_boardWidth, _boardHeight, _cellSize, _boardOrigin, _plane);
         }
 
         private void LogBoardValidation()
@@ -100,6 +84,17 @@ namespace MechStorm.Presentation
             Log.Info($"[MechStorm] Grid(0,0) center: {firstCellCenter}, Grid({_boardWidth - 1},{_boardHeight - 1}) center: {lastCellCenter}");
         }
 
+        private void CreateDebugMarkers()
+        {
+            if (!_showBoardDebugMarkers)
+            {
+                return;
+            }
+
+            CreateDebugMarker("Grid(0,0)", new Vector2Int(0, 0), Color.green);
+            CreateDebugMarker("Grid(Max)", new Vector2Int(_boardWidth - 1, _boardHeight - 1), Color.red);
+        }
+
         private void CreateDebugMarker(string markerName, Vector2Int gridPosition, Color color)
         {
             var marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -111,6 +106,13 @@ namespace MechStorm.Presentation
             {
                 renderer.material.color = color;
             }
+        }
+
+        private void CreatePlayerA()
+        {
+            CreatePlayerAUnit();
+            CreatePlayerAVisual();
+            CreatePlayerAHealthBar();
         }
 
         private void CreatePlayerAUnit()
@@ -150,7 +152,7 @@ namespace MechStorm.Presentation
 
             var camera = _camera != null ? _camera : Camera.main;
             _playerAHealthBarView = new UnitHealthBarView(_playerAHealthBarAnchor, camera);
-            _playerAHealthBarView.RefreshValue(_playerAUnit.MechRuntime.CurrentDurability, _playerAUnit.Mech.MaxDurability);
+            RefreshPlayerAHealthBar();
             _playerAHealthBarView.RefreshFacing();
         }
 
@@ -162,6 +164,64 @@ namespace MechStorm.Presentation
                 $"World={worldPosition}, " +
                 $"HP={combatUnit.MechRuntime.CurrentDurability}/{combatUnit.Mech.MaxDurability}, " +
                 $"AP={combatUnit.PilotRuntime.CurrentActionPoint}/{combatUnit.Pilot.MaxActionPoint}");
+        }
+
+        private void TickPresentationController()
+        {
+            if (_presentationController == null)
+            {
+                return;
+            }
+
+            if (_presentationController.Tick())
+            {
+                Log.Info($"[MechStorm] PlayerA moved to GridPosition: {_playerAUnit.Position}, WorldPosition: {_playerA.position}");
+            }
+        }
+
+        private void RefreshPlayerAHealthBar()
+        {
+            if (_playerAUnit == null || _playerAHealthBarView == null)
+            {
+                return;
+            }
+
+            _playerAHealthBarView.RefreshValue(
+                _playerAUnit.MechRuntime.CurrentDurability,
+                _playerAUnit.Mech.MaxDurability);
+        }
+
+        private void RefreshHealthBarFacing()
+        {
+            _playerAHealthBarView?.RefreshFacing();
+        }
+
+        public void ApplyDebugDamageToPlayerA()
+        {
+            if (_playerAUnit == null || _playerAHealthBarView == null)
+            {
+                Log.Error("[MechStorm] Cannot apply debug damage because PlayerA or health bar is missing.");
+                return;
+            }
+
+            if (_debugDamage <= 0)
+            {
+                Log.Warning("[MechStorm] Debug damage must be greater than zero.");
+                return;
+            }
+
+            if (_playerAUnit.MechRuntime.IsDestroyed)
+            {
+                Log.Info("[MechStorm] PlayerA is already destroyed.");
+                return;
+            }
+
+            _playerAUnit.MechRuntime.TakeDamage(_debugDamage);
+            RefreshPlayerAHealthBar();
+
+            Log.Info(
+                $"[MechStorm] PlayerA took {_debugDamage} damage, " +
+                $"HP={_playerAUnit.MechRuntime.CurrentDurability}/{_playerAUnit.Mech.MaxDurability}");
         }
 
         private void CreateBoardInputter()
@@ -191,11 +251,11 @@ namespace MechStorm.Presentation
             }
 
             var grid = new SquareGrid(_boardWidth, _boardHeight);
-            _movementResolver = new MovementResolver(grid);
+            var movementResolver = new MovementResolver(grid);
             _presentationController = new BattlePresentationController(
                 _playerAUnit,
                 _playerAVisual,
-                _movementResolver,
+                movementResolver,
                 _boardInputter);
         }
     }

@@ -32,6 +32,8 @@ namespace MechStorm.Presentation
         private MovementResolver _movementResolver;
         private BattlePresentationController _presentationController;
         private CombatUnit _playerAUnit;
+        private Transform _playerAHealthBarAnchor;
+        private UnitHealthBarView _playerAHealthBarView;
         
         private TurnStateMachine _turnStateMachine;
 
@@ -64,6 +66,7 @@ namespace MechStorm.Presentation
 
             CreatePlayerAUnit();
             CreatePlayerAVisual();
+            CreatePlayerAHealthBar();
             CreateBoardInputter();
             CreatePresentationController();
         }
@@ -79,6 +82,8 @@ namespace MechStorm.Presentation
             {
                 Log.Info($"[MechStorm] PlayerA moved to GridPosition: {_playerAUnit.Position}, WorldPosition: {_playerA.position}");
             }
+
+            _playerAHealthBarView?.RefreshFacing();
         }
 
         private void LogBoardValidation()
@@ -123,10 +128,30 @@ namespace MechStorm.Presentation
             unitObject.name = "PlayerA";
             unitObject.transform.localScale = new Vector3(_cellSize * 0.6f, _cellSize, _cellSize * 0.6f);
 
+            var anchorObject = new GameObject("HealthBarAnchor");
+            anchorObject.transform.SetParent(unitObject.transform, false);
+            anchorObject.transform.localPosition = Vector3.up * 0.8f;
+            anchorObject.transform.localScale = Vector3.one;
+            _playerAHealthBarAnchor = anchorObject.transform;
+
             _playerA = unitObject.transform;
             _playerAVisual = new CombatUnitVisual(_playerA, _coordConverter, _playerA.localScale.y * 0.5f);
             _playerAVisual.RefreshPosition(_playerAUnit.Position);
             LogUnitStatus(_playerAUnit, _playerA.position);
+        }
+
+        private void CreatePlayerAHealthBar()
+        {
+            if (_playerAHealthBarAnchor == null || _playerAUnit == null)
+            {
+                Log.Error("[MechStorm] PlayerA health bar dependencies are not ready.");
+                return;
+            }
+
+            var camera = _camera != null ? _camera : Camera.main;
+            _playerAHealthBarView = new UnitHealthBarView(_playerAHealthBarAnchor, camera);
+            _playerAHealthBarView.RefreshValue(_playerAUnit.MechRuntime.CurrentDurability, _playerAUnit.Mech.MaxDurability);
+            _playerAHealthBarView.RefreshFacing();
         }
 
         private void LogUnitStatus(CombatUnit combatUnit, Vector3 worldPosition)

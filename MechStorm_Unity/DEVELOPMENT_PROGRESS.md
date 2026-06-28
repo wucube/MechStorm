@@ -3,8 +3,8 @@
 ## 当前阶段
 
 - 当前里程碑：P0 / Sprint 1
-- 当前任务：Task 1.7.7 最简血条
-- 当前状态：待开始
+- 当前任务：P0 / Sprint 1 收尾
+- 当前状态：待提交与下一阶段规划
 - 最后更新：2026-06-27
 
 ## 状态约定
@@ -101,11 +101,11 @@
   - 验证方式：Unity Play Mode 手动验证单位能移动到可达格子，不可达格子不移动；已确认验收通过
   - 备注：P0 先用单个玩家单位；该类只做流程编排，不直接实现移动规则，也不直接处理射线细节；移动插值、朝向变化和可移动范围高亮暂不纳入本任务
 
-- [ ] Task 1.7.7 最简血条：`UnitHealthBarView`
-  - 状态：未开始
+- [x] Task 1.7.7 最简血条：`UnitHealthBarView`
+  - 状态：已完成
   - 完成标准：显示 `CurrentDurability / MaxDurability`，攻击或扣血后可刷新
-  - 验证方式：Unity Play Mode 手动验证血条数值随耐久变化
-  - 备注：P0 可用 World Space Slider 或简单 UI 占位；暂不接 TEngine UIWindow
+  - 验证方式：Unity Play Mode 手动验证血条能正常创建并显示
+  - 备注：当前采用程序化创建的 World Space Canvas，挂在单位 `HealthBarAnchor` 下；显示血条背景、填充条与 `current/max` 文本；暂不接 TEngine UIWindow、Prefab 动态加载和对象池
 
 ## 坐标系统约定
 
@@ -161,6 +161,6 @@
 
 ## 下一步
 
-1. 进入 Task 1.7.7：最简血条。
-2. 设计 `UnitHealthBarView` 的最小职责和接口。
-3. 先用简单占位显示 `CurrentDurability / MaxDurability`，攻击或扣血后可刷新。
+1. P0 / Sprint 1 功能已完成，进行代码提交与必要回归。
+2. 下一阶段可规划 P1 / Sprint 2 核心机制深化。
+3. 若继续打磨表现层，可单独评估移动范围高亮、移动插值、朝向变化与头顶 UI Prefab 化。

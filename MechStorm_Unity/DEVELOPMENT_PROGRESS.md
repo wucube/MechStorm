@@ -5,7 +5,7 @@
 - 当前里程碑：P1 / Sprint 2
 - 当前任务：Task 2.1 战斗流程控制器规划
 - 当前状态：待开始
-- 最后更新：2026-06-27
+- 最后更新：2026-06-28
 
 ## 状态约定
 
@@ -160,6 +160,12 @@
   - 验证方式：EditMode 测试覆盖结果内容；表现层根据结果刷新单位位置、血条和日志
   - 备注：P1 先使用纯 C# 结果对象或本地事件；不急着接 TEngine `GameEvent`
 
+- [ ] Task 2.7 轻量战斗快照与调试导出
+  - 状态：未开始
+  - 完成标准：可从纯 Battle 逻辑层导出 `BattleSnapshot` 与关键 `BattleActionLog`；失败测试或手动调试时能输出 JSON 诊断数据，用于离线分析战斗状态
+  - 验证方式：EditMode 测试构造一段移动 / 攻击 / 回合推进流程，导出的快照包含回合、当前行动方、当前单位、棋盘、单位列表、位置、HP、死亡状态、行动状态与关键行为记录
+  - 备注：排在 Task 2.6 之后，因为它依赖 `BattleController`、多单位管理、回合推进和结果通知；Sprint 2 只做轻量调试导出，不做完整录像、悔棋、正式回放 UI 或权威回放系统
+
 - [ ] Sprint 3：空间、攻击范围与技能雏形
   - 状态：未开始
   - 总目标：在普通移动 / 普通攻击稳定后，再引入攻击范围、武器范围、地形 / 占格规则与最小主动技能
@@ -197,6 +203,7 @@
 | 2026-06-28 | P1 / Sprint 2 继续使用临时入口，不立即接 TEngine 正式流程 | Sprint 2 的重点是 Battle 纯 C# 核心机制，过早接 Procedure、BattleModule、正式 UI 和资源加载会增加干扰 | `TempGameEntry` 继续作为测试入口；TEngine 正式流程、BattleMainUI、Prefab 动态加载与对象池放到 P2 或机制稳定后处理 |
 | 2026-06-28 | Buff / Modifier / Trigger 后置，技能雏形可在普通攻击稳定后引入 | Buff 会牵扯持续时间、叠层、触发时机、属性修正、驱散和免疫，过早引入会让基础战斗流程复杂化 | Sprint 2 不做 Buff / 技能；Sprint 3 可做最小主动技能；P2 再引入 Buff、Modifier、Trigger 与轻量 GAS 变种 |
 | 2026-06-28 | 输入 UI 分阶段接入，先做最小战斗输入 | 技能栏、目标选择、部署拖拽和正式 UI 都依赖稳定的战斗流程和单位管理 | Sprint 2 只做点击单位、点击格子移动、点击敌方普通攻击与结束回合；Sprint 3 再做技能按钮和目标选择；部署拖拽单独作为 BattlePreparation / Deployment 阶段 |
+| 2026-06-28 | 轻量战斗快照与调试导出排入 Sprint 2 后段 | 离线调试需要依赖 BattleController、多单位、回合推进和结果通知，太早做会缺少稳定数据源；但等到 P2 再做会降低后续逻辑调试效率 | Sprint 2 在 Task 2.6 之后追加 Task 2.7，只做 `BattleSnapshot`、关键 `BattleActionLog` 和 JSON 诊断导出；完整 Command Replay、Result Replay、悔棋和录像仍放到 Sprint 5 / P2 |
 
 ## Git 版本管理约定
 

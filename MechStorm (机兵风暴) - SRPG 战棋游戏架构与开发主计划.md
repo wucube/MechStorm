@@ -397,6 +397,141 @@
 
 ---
 
+### 🟣 P4 / 长期目标：编辑器前置基建 (Authoring Foundation)
+
+**目标：** 先把“能被编辑器安全配置”的底层能力补齐，不急着做完整可视化编辑器。此阶段重点是机制 Schema、校验器、调试报告、沙盒运行时和少量内部工具，确保后续编辑器不是直接操作散乱配置。
+
+**前提：** P3 的核心战斗、轻量 GAS、Luban 数据驱动、回放和调试日志已经稳定。
+
+**完成标准：** 可以不用完整 UI，仅通过配置表或简易内部面板，配置并验证 3 个复杂机制样例角色，且能解释目标选择、命中、伤害、Buff、Trigger 和 Reaction 的完整过程。
+
+**核心原则：**
+
+```text
+先 Runtime，后 Editor
+先 Schema，后可视化
+先校验，后拖拽
+先调试解释，后美观交互
+```
+
+**推荐任务拆分：**
+
+| 任务 | 内容 |
+|------|------|
+| Task 7.1 | 机制 Schema 定稿：稳定 `Ability`、`Effect`、`State`、`Trigger`、`Condition`、`TargetRule`、`DamageFormula` 的数据边界 |
+| Task 7.2 | GameplayTag 注册表：集中管理 Tag 定义、层级、互斥关系、废弃标记和引用检查 |
+| Task 7.3 | 配置静态校验器：检查缺失引用、非法枚举、循环 Trigger、不可达 Condition、无效 TargetRule |
+| Task 7.4 | TargetValidationReport：输出目标合法性、范围、LOS、AOE、阵营、部位和 Tag 过滤原因 |
+| Task 7.5 | DamageBreakdown / AttributeBreakdown：输出伤害和属性最终值的来源拆解 |
+| Task 7.6 | StateChangeLog / TriggerExecutionLog / ReactionLog：记录状态变化、触发链和状态反应过程 |
+| Task 7.7 | `IBattlePreviewRuntime`：提供编辑器和测试共用的沙盒预览接口，不绕过真实 `MechStorm.Battle` 结算 |
+| Task 7.8 | 标准复杂样例库：制作追击、反击、部位破坏、状态反应、多段攻击等样例配置 |
+| Task 7.9 | 配置级回归测试：每个复杂样例绑定固定输入、期望 Result 和关键日志断言 |
+| Task 7.10 | 内部调试面板：先用 Odin Inspector 或简易 EditorWindow 查看 Snapshot、Log、Breakdown 和校验结果 |
+
+**暂不做：** 完整节点式技能编辑器、策划友好的拖拽工作流、内容包发布流水线、大规模平衡模拟。
+
+---
+
+### 🟤 P5 / 远期目标：战斗内容编辑器 MVP (Battle Content Editor)
+
+**目标：** 在 P4 的 Schema、校验、调试和沙盒运行时稳定后，建设真正的战斗内容编辑器，使项目能够通过编辑器创建出《钢岚》同级别机制复杂度的角色。
+
+这里的“同级别”不指表现层复刻，而指机制表达能力达到同类水平：角色、机兵、部位、武器、技能、Buff、触发器、状态反应、追击、反击、协力、条件增伤、AI 评分等都能由数据和规则组合实现，而不是为每个角色写专属硬编码。
+
+**完成标准：** 不改核心代码，仅通过编辑器配置出 3 个以上复杂角色，并通过沙盒预览、配置校验和回归测试验证其机制正确。
+
+**编辑对象：**
+
+```text
+PilotDefinition
+MechDefinition
+MechPartDefinition
+WeaponDefinition
+AbilityDefinition
+StateDefinition
+EffectDefinition
+TriggerRuleDefinition
+ConditionDefinition
+TargetRuleDefinition
+AreaShapeDefinition
+DamageFormulaDefinition
+GameplayTagDefinition
+AiScoringDefinition
+BattleCueReference
+```
+
+**必须覆盖的机制类型：**
+
+- 多部位破坏、溢出伤害、部位禁用和挂载点联动。
+- AP / PP 消耗、行动配额、再移动、再攻击和资源转换。
+- 主动技能、普通攻击、追击、反击、协力和额外打击。
+- Buff 持续、叠层、刷新、拒绝刷新、互斥、驱散和免疫。
+- 状态反应，例如 `Wet + Burn -> Vaporize`，且支持双向触发和多段攻击多次触发。
+- 条件增伤、条件减伤、护盾、伤害转移、命中修正和暴击修正。
+- Target / Range / LOS / AOE / 地形 / ZOC / 移动能力标签。
+- AI 评分参数、技能偏好、目标优先级和行动选择权重。
+
+**推荐任务拆分：**
+
+| 任务 | 内容 |
+|------|------|
+| Task 8.1 | 编辑器导航与资源索引：按 Pilot、Mech、Weapon、Ability、State、Tag 分类浏览和搜索配置 |
+| Task 8.2 | 角色装配编辑器：组合 Pilot、Mech、部位、挂载点、武器、技能和被动规则 |
+| Task 8.3 | 技能编辑器：编辑 Cost、TargetRule、AreaShape、HitSegment、EffectList 和 BattleCue 引用 |
+| Task 8.4 | 状态编辑器：编辑 Duration、StackPolicy、RefreshPolicy、MutexStates、GrantedTags、Modifiers 和 TriggerRules |
+| Task 8.5 | Trigger / Condition 编辑器：可视化配置时序、条件、触发次数限制和作用目标 |
+| Task 8.6 | 公式与数值调试器：编辑 DamageFormula，并展示 DamageBreakdown 和 AttributeBreakdown |
+| Task 8.7 | 目标范围预览器：在棋盘沙盒中预览 AOE、LOS、ZOC、部位目标和过滤原因 |
+| Task 8.8 | 战斗沙盒模拟器：生成 Caster / Target Dummy，调用 `IBattlePreviewRuntime` 执行真实结算 |
+| Task 8.9 | 配置校验面板：编辑时即时展示错误、警告、风险项和阻断项 |
+| Task 8.10 | 复杂角色验收集：沉淀 3 个以上钢岚同级复杂角色作为编辑器验收样例 |
+
+**边界约束：** 编辑器只能生成和修改数据，不能在编辑器侧实现一套绕过 `MechStorm.Battle` 的影子规则。
+
+---
+
+### ⚫ P6 / 远期目标：内容生产工业化与平衡验证 (Content Production Pipeline)
+
+**目标：** 在 P5 战斗内容编辑器稳定后，把“能做出复杂角色”升级为“能稳定、批量、安全地生产复杂角色”。此阶段关注内容生产流水线、自动化验证、平衡分析、版本回归和长期运营，而不是继续堆单个战斗机制。
+
+P6 的核心判断标准：
+
+> 不只是能手工配置一个《钢岚》同级复杂角色，而是能持续生产一批同级复杂角色，并且能证明它们规则正确、强度可控、回归风险可发现。
+
+**P6 工具链目标：**
+
+```text
+Battle Content Editor
+-> Validation Pipeline
+-> Simulation Runner
+-> Balance Dashboard
+-> Regression Test Suite
+-> Content Package Builder
+-> Release Review Workflow
+```
+
+**推荐任务拆分：**
+
+| 任务 | 内容 |
+|------|------|
+| Task 9.1 | 内容包版本系统：按角色/机兵/武器/技能集合生成可审查的 Content Package |
+| Task 9.2 | 自动规则校验流水线：在提交前扫描 Luban 表、Tag、Trigger、Condition、Effect 引用完整性 |
+| Task 9.3 | 标准战斗沙盒库扩充：覆盖单体输出、AOE、反击、追击、状态反应、部位破坏等固定测试场景 |
+| Task 9.4 | 自动回归 Runner：配置变更后批量执行沙盒，导出 Result、Log、DamageBreakdown、TriggerExecutionLog |
+| Task 9.5 | 平衡指标面板：统计胜率、回合数、伤害分布、AP/PP 消耗、技能使用率和异常触发次数 |
+| Task 9.6 | 配置 Diff 报告：展示技能、状态、数值公式和触发规则变更对战斗结果的影响 |
+| Task 9.7 | 内容 Review 工作流：编辑器内标记风险项、测试覆盖状态、Review 结论和发布阻断项 |
+| Task 9.8 | AI 辅助内容草案：生成技能/状态/条件组合建议，并自动附带测试场景草案 |
+
+**边界约束：**
+
+- P6 不替代人工设计，只提高生产、校验、回归和分析效率。
+- AI 生成的任何内容都必须经过同一套 Schema、校验器、沙盒测试和人工 Review。
+- 平衡模拟只作为参考指标，不能直接替代策划决策。
+- 任何工具都不能绕过 `MechStorm.Battle` 真实结算核心。
+
+---
 > **当前入口：从 P0 / Task 1.1 开始。**
 
 ---

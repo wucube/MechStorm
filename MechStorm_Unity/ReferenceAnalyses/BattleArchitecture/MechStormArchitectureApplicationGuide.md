@@ -1,9 +1,11 @@
-# Godot 两个代码库对 MechStorm 的参考建议
+# MechStorm 战斗架构参考落地指南
 
 分析对象：
 
 - GAS 简化系统参考：<https://github.com/LiGameAcademy/godot_ability_system>
 - 回合制战斗系统参考：<https://github.com/LiGameAcademy/godot4_turn_based_combat_system>
+
+两个参考实现恰好使用 Godot，但本文只提炼可迁移到 MechStorm 纯 C# 无头核心的架构职责和落地顺序，不以引擎类型组织结论。
 
 当前 MechStorm 阶段：P1 / Sprint 2，任务入口是 `BattleController` / `BattleSession`，目标是多单位、移动、普通攻击、扣血、死亡、回合推进与表现同步。结论是：两个 Godot 项目都可以作为设计思路参考，但都不能直接照搬。MechStorm 的主线仍应保持无头核心、显式流程、整数化、结果对象、逐步数据驱动。
 
@@ -87,7 +89,7 @@ BattleStateManager + TurnOrderManager
 -> TurnCoordinator
 
 BattleCharacterRegistryManager
--> BattleUnitRegistry
+-> CombatUnitRegistry
 
 CombatRuleManager
 -> BattleRuleChecker
@@ -118,7 +120,7 @@ SkillEffect
 
 ```text
 BattleSession
-BattleUnitRegistry
+CombatUnitRegistry
 TurnCoordinator
 BattleRuleChecker
 BattleActionResult
@@ -214,7 +216,7 @@ AttributeDefinition / AttributeRuntime
 BattleSession
   战斗上下文，持有棋盘、单位、回合状态和规则服务
 
-BattleUnitRegistry
+CombatUnitRegistry
   管理全部单位、阵营、存活、死亡、敌我关系
 
 TurnCoordinator
@@ -440,7 +442,7 @@ Log：可读历史记录
 ```text
 BattleSession
   SquareGrid Grid
-  BattleUnitRegistry Units
+  CombatUnitRegistry Units
   TurnCoordinator Turn
   MovementResolver Movement
   AttackResolver Attack
@@ -452,7 +454,7 @@ BattleSession
 
 不要让 `TempGameEntry` 继续直接持有全部战斗规则。
 
-#### E.1.2 BattleUnitRegistry
+#### E.1.2 CombatUnitRegistry
 
 可参考 Godot 注册表，MechStorm 纯 C# 版本建议：
 
@@ -673,7 +675,7 @@ SkillStatusData
 | Godot 类组 | MechStorm 建议类 | 是否当前落地 | 说明 |
 |---|---|---:|---|
 | `BattleManager` | `BattleSession` / `BattleController` | 是 | 战斗核心入口，不能承担表现职责 |
-| `BattleCharacterRegistryManager` | `BattleUnitRegistry` | 是 | 多单位、阵营、存活、敌我查询马上需要 |
+| `BattleCharacterRegistryManager` | `CombatUnitRegistry` | 是 | 多单位、阵营、存活、敌我查询马上需要 |
 | `TurnOrderManager` | `TurnCoordinator` | 是 | 当前行动单位和回合推进马上需要 |
 | `CombatRuleManager` | `BattleRuleChecker` | 是 | 胜负、全灭、异常输入判断 |
 | Godot 信号结果 | `BattleActionResult` / `BattleEvent` | 是 | 表现同步、测试、日志和快照都依赖 |
@@ -687,7 +689,7 @@ SkillStatusData
 ```text
 BattleSession
   SquareGrid Grid
-  BattleUnitRegistry UnitRegistry
+  CombatUnitRegistry UnitRegistry
   TurnCoordinator TurnCoordinator
   BattleRuleChecker RuleChecker
   MovementResolver MovementResolver
@@ -893,7 +895,7 @@ Godot 教学库在行动、技能、伤害中大量 `await` 移动、动画、Ti
 
 ```text
 BattleSession
-BattleUnitRegistry
+CombatUnitRegistry
 TurnCoordinator
 BattleRuleChecker
 BattleActionResult

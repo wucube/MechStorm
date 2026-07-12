@@ -1,6 +1,8 @@
-# godot4_turn_based_combat_system 代码库解析
+# 回合制战斗流程与职责拆分架构分析
 
 代码库地址：<https://github.com/LiGameAcademy/godot4_turn_based_combat_system>
+
+参考实现使用 Godot 4，但本文关注的是回合制战斗流程、单位注册表、回合队列、规则检查和上下文对象等可跨引擎复用的架构经验，引擎 API 仅作为实现背景。
 
 分析结论：这是一个 Godot 4 教学型回合制战斗系统，整体更接近 JRPG 站位回合战斗，而不是 SRPG 棋盘战斗。从架构分析看，主要可观察点是战斗流程管理器拆分、角色注册表、回合队列、技能效果组合、状态事件触发和上下文对象。它不适合直接照搬，因为核心逻辑与 Godot Node、动画、全局单例和非确定性随机耦合较重。
 
@@ -296,7 +298,7 @@ START
 
 - `TurnCoordinator` 应只管当前行动单位、跳过死亡单位、阵营切换、行动完成。
 - 胜负判断可以拆给 `BattleRuleChecker`。
-- 单位列表、阵营和存活查询可以拆给 `BattleUnitRegistry`。
+- 单位列表、阵营和存活查询可以拆给 `CombatUnitRegistry`。
 
 ### C.3 玩家行动流程
 
@@ -776,7 +778,7 @@ CharacterCombatComponent.take_damage()
 | `BattleManager` | `scripts/core/battle/battle_manager.gd` | 战斗总协调、状态响应、玩家行动、敌方 AI、日志、视觉转发 | 当前职责偏重，可继续拆分为战斗上下文、回合协调、规则检查与结果输出 |
 | `BattleStateManager` | `scripts/core/battle/battle_state_manager.gd` | 只保存当前状态并发 `state_changed` 信号 | 状态转移不应长期散落在外部回调里 |
 | `TurnOrderManager` | `scripts/core/battle/turn_order_manager.gd` | 按速度构建行动队列，弹出当前行动者 | 早期阶段可先做阵营顺序，后续扩速度队列 |
-| `BattleCharacterRegistryManager` | `scripts/core/battle/battle_character_registry_manager.gd` | 全体、玩家、敌人、存活、敌我、死亡反注册 | 非常适合映射为 `BattleUnitRegistry` |
+| `BattleCharacterRegistryManager` | `scripts/core/battle/battle_character_registry_manager.gd` | 全体、玩家、敌人、存活、敌我、死亡反注册 | 非常适合映射为 `CombatUnitRegistry` |
 | `CombatRuleManager` | `scripts/core/battle/combat_rule_manager.gd` | 胜负、回合上限、特殊规则入口 | 可映射为 `BattleRuleChecker` |
 | `Character` | `scenes/characters/character.gd` | Godot 角色节点，聚合表现、动画、点击、属性快捷访问、组件入口 | 应拆成 `CombatUnit` 和 `CombatUnitVisual` |
 | `CharacterCombatComponent` | `scripts/core/character/character_combat_component.gd` | 执行动作、伤害入口、死亡信号、行动限制检查 | 可参考动作入口，不保留动画等待 |

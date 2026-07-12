@@ -1,6 +1,8 @@
-# godot_ability_system 代码库解析
+# Gameplay Ability System 模块边界与扩展架构分析
 
 代码库地址：<https://github.com/LiGameAcademy/godot_ability_system>
+
+参考实现使用 Godot 4，但本文关注的是 Ability、Attribute、Status、Effect、Tag、Targeting 和调试工具的职责边界，引擎节点、资源和信号仅作为实现背景。
 
 分析结论：这是一个偏实时动作、ARPG、MOBA 方向的 Godot 4 Gameplay Ability System 插件。它的价值不在于可直接搬代码，而在于把技能、属性、状态、效果、标签、目标选择、表现 Cue 和调试工具拆成了较清晰的模块。从架构适用性看，它适合作为轻量 GAS 变种的长期参考，但不适合在 早期阶段 直接照搬。
 

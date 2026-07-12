@@ -36,6 +36,16 @@
 - Luban 配置：`.claude/skills/tengine-dev/references/luban-config.md`
 - 命名规则 / 禁止模式：`.claude/skills/tengine-dev/references/naming-rules.md`
 
+## Skill 使用边界
+
+- 默认只使用项目自身提供的 Skill，包括项目 `.factory/skills/`、`.claude/skills/` 中定义或由项目动态发现的 Skill。
+- Factory/Droid 内置或其他工具层提供的通用 Skill，不得仅因为“可能有帮助”而主动调用。
+- 工具层 Skill 仅在以下情况使用：
+  1. 用户明确要求使用该 Skill 或其对应能力。
+  2. 用户任务与该 Skill 的职责高度重合，并且项目自身没有等效流程或 Skill。
+- 若项目文档、项目 Skill 或现有工作流已经覆盖任务需求，应优先遵循项目方案，不再叠加通用审查、简化或分析 Skill。
+- 不得因主动调用工具层 Skill 而引入超出用户要求的子任务、额外 Agent 审查或扩大实现范围。
+
 ## 规范分层原则
 
 - `AGENTS.md` 只作为 Factory/Droid 的入口索引，不复制完整项目规范。

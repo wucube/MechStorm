@@ -2,16 +2,10 @@ namespace MechStorm.Battle.Combat
 {
     public sealed class TurnStateMachine
     {
-        public int CurrentRoundNumber { get; private set; }
+        public int CurrentRoundNumber { get; private set; } = 1;
 
-        public TurnPhase CurrentPhase { get; private set; }
+        public TurnPhase CurrentPhase { get; private set; } = TurnPhase.Player;
 
-        public TurnStateMachine()
-        {
-            CurrentRoundNumber = 1;
-            CurrentPhase = TurnPhase.Player;
-        }
-        
         public void AdvanceTurn()
         {
             switch (CurrentPhase)

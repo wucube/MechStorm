@@ -1,7 +1,6 @@
 using MechStorm.Battle.Combat;
 using TEngine;
 using UnityEngine;
-using SquareGrid = MechStorm.Battle.Foundation.SquareGrid;
 using Vector2Int = MechStorm.Battle.Foundation.Vector2Int;
 
 namespace MechStorm.Presentation
@@ -31,6 +30,7 @@ namespace MechStorm.Presentation
         private GridCoordinateConverter _coordConverter;
         private BattleBoardInputter _boardInputter;
         private BattlePresentationController _presentationController;
+        private BattleSession _battleSession;
         private CombatUnit _playerAUnit;
         private Transform _playerAHealthBarAnchor;
         private UnitHealthBarView _playerAHealthBarView;
@@ -53,6 +53,7 @@ namespace MechStorm.Presentation
             LogBoardValidation();
             CreateDebugMarkers();
             CreatePlayerA();
+            CreateBattleSession();
             CreateBoardInputter();
             CreatePresentationController();
         }
@@ -244,19 +245,30 @@ namespace MechStorm.Presentation
 
         private void CreatePresentationController()
         {
-            if (_playerAUnit == null || _playerAVisual == null || _boardInputter == null)
+            if (_battleSession == null || _playerAVisual == null || _boardInputter == null)
             {
                 Log.Error("[MechStorm] BattlePresentationController dependencies are not ready.");
                 return;
             }
 
-            var grid = new SquareGrid(_boardWidth, _boardHeight);
-            var movementResolver = new MovementResolver(grid);
             _presentationController = new BattlePresentationController(
-                _playerAUnit,
+                _battleSession,
                 _playerAVisual,
-                movementResolver,
                 _boardInputter);
+        }
+
+        private void CreateBattleSession()
+        {
+            if (_playerAUnit == null)
+            {
+                Log.Error("[MechStorm] BattleSession requires PlayerA.");
+                return;
+            }
+
+            _battleSession = new BattleSession(
+                _boardWidth,
+                _boardHeight,
+                new[] { _playerAUnit });
         }
     }
 }

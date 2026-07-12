@@ -5,15 +5,16 @@ namespace MechStorm.Presentation
 {
     public sealed class BattlePresentationController
     {
-        private readonly CombatUnit _combatUnit;
-        private readonly MovementResolver _movementResolver;
+        private readonly BattleSession _battleSession;
         private readonly CombatUnitVisual _unitVisual;
         private readonly BattleBoardInputter _battleBoardInputter;
 
-        public BattlePresentationController(CombatUnit combatUnit, CombatUnitVisual combatUnitVisual, MovementResolver movementResolver, BattleBoardInputter battleBoardInputter)
+        public BattlePresentationController(
+            BattleSession battleSession,
+            CombatUnitVisual combatUnitVisual,
+            BattleBoardInputter battleBoardInputter)
         {
-            _combatUnit = combatUnit ?? throw new ArgumentNullException(nameof(combatUnit));
-            _movementResolver = movementResolver ?? throw new ArgumentNullException(nameof(movementResolver));
+            _battleSession = battleSession ?? throw new ArgumentNullException(nameof(battleSession));
             _unitVisual = combatUnitVisual ?? throw new ArgumentNullException(nameof(combatUnitVisual));
             _battleBoardInputter = battleBoardInputter ?? throw new ArgumentNullException(nameof(battleBoardInputter));
         }
@@ -25,12 +26,12 @@ namespace MechStorm.Presentation
                 return false;
             }
 
-            if (!_movementResolver.TryMoveTo(_combatUnit, targetGridPos))
+            if (!_battleSession.TryMoveCurrentCombatUnit(targetGridPos))
             {
                 return false;
             }
 
-            _unitVisual.RefreshPosition(_combatUnit.Position);
+            _unitVisual.RefreshPosition(_battleSession.CurrentCombatUnit.Position);
             return true;
         }
     }

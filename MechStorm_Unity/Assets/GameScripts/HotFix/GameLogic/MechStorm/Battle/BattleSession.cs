@@ -65,7 +65,18 @@ namespace MechStorm.Battle.Combat
                 throw new ArgumentException("Target unit does not belong to this battle session.", nameof(targetUnit));
             }
 
-            _attackResolver.Attack(CurrentCombatUnit, targetUnit);
+            var attackerUnit = CurrentCombatUnit;
+            if (_unitRegistry.GetFaction(attackerUnit) == _unitRegistry.GetFaction(targetUnit))
+            {
+                throw new InvalidOperationException("Cannot attack a unit from the same faction.");
+            }
+
+            if (targetUnit.IsDead())
+            {
+                throw new InvalidOperationException("Cannot attack a dead unit.");
+            }
+
+            _attackResolver.Attack(attackerUnit, targetUnit);
         }
 
         public void EndCurrentUnitAction()
@@ -118,6 +129,5 @@ namespace MechStorm.Battle.Combat
                 }
             }
         }
-
     }
 }

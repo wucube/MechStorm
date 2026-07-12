@@ -81,6 +81,42 @@ namespace MechStorm.Battle.Tests.Combat
         }
 
         [Test]
+        public void AttackTargetCombatUnit_WithNonAdjacentTarget_ThrowsWithoutApplyingDamage()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), attack: 25);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(3, 1), durability: 80);
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                session.AttackTargetCombatUnit(enemyUnit));
+            Assert.AreEqual(80, enemyUnit.MechRuntime.CurrentDurability);
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithLethalDamage_DestroysTarget()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), attack: 50);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(2, 1), durability: 30);
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            session.AttackTargetCombatUnit(enemyUnit);
+
+            Assert.AreEqual(0, enemyUnit.MechRuntime.CurrentDurability);
+            Assert.IsTrue(enemyUnit.IsDead());
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithNullTarget_Throws()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(2, 1));
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            Assert.Throws<ArgumentNullException>(() =>
+                session.AttackTargetCombatUnit(null));
+        }
+
+        [Test]
         public void AttackTargetCombatUnit_WithUnknownTarget_Throws()
         {
             var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
@@ -90,6 +126,51 @@ namespace MechStorm.Battle.Tests.Combat
 
             Assert.Throws<ArgumentException>(() =>
                 session.AttackTargetCombatUnit(unknownUnit));
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithSameFactionTarget_ThrowsWithoutApplyingDamage()
+        {
+            var playerA = CreateCombatUnit(1, new Vector2Int(1, 1), attack: 25);
+            var playerB = CreateCombatUnit(2, new Vector2Int(2, 1), durability: 80);
+            var enemyUnit = CreateCombatUnit(3, new Vector2Int(4, 4));
+            var session = CreateBattleSession(
+                new[] { playerA, playerB },
+                new[] { enemyUnit });
+
+            Assert.Throws<InvalidOperationException>(() =>
+                session.AttackTargetCombatUnit(playerB));
+            Assert.AreEqual(80, playerB.MechRuntime.CurrentDurability);
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithDeadTarget_Throws()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var deadEnemy = CreateCombatUnit(2, new Vector2Int(2, 1));
+            var aliveEnemy = CreateCombatUnit(3, new Vector2Int(3, 1));
+            deadEnemy.MechRuntime.TakeDamage(deadEnemy.Mech.MaxDurability);
+            var session = CreateBattleSession(
+                new[] { playerUnit },
+                new[] { deadEnemy, aliveEnemy });
+
+            Assert.Throws<InvalidOperationException>(() =>
+                session.AttackTargetCombatUnit(deadEnemy));
+            Assert.AreEqual(0, deadEnemy.MechRuntime.CurrentDurability);
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WhenTeamBActs_AppliesDamageToTeamA()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), durability: 80);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(2, 1), attack: 25);
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+            session.EndCurrentUnitAction();
+
+            session.AttackTargetCombatUnit(playerUnit);
+
+            Assert.AreSame(enemyUnit, session.CurrentCombatUnit);
+            Assert.AreEqual(55, playerUnit.MechRuntime.CurrentDurability);
         }
 
         [Test]

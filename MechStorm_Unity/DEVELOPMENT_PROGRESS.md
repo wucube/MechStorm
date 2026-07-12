@@ -3,8 +3,8 @@
 ## 当前阶段
 
 - 当前里程碑：P1 / Sprint 2
-- 当前任务：Task 2.4 普通攻击接入战斗流程
-- 当前状态：待开始
+- 当前任务：Task 2.5 最小战斗输入
+- 当前状态：进行中
 - 最后更新：2026-07-12
 
 ## 状态约定
@@ -145,14 +145,14 @@
   - 验证方式：`MechStorm.Battle.Tests`、`MechStorm.Presentation`、`GameLogic` 与 `Assembly-CSharp-Editor` 编译通过；Unity Test Runner 全部测试由开发者手动验证通过；Play Mode 已验证 TeamA / TeamB 切换、当前单位变化、回合数递增和对应单位表现移动
   - 备注：已用 `TurnCoordinator` 替代仅切换 Player / Enemy 的 `TurnStateMachine` / `TurnPhase`，集中管理当前回合、当前阵营、当前单位索引、死亡跳过和阵营推进；`BattleSession` 只保留委托入口，Neutral 不进入自动行动顺序。实际范围略有扩展：补齐 EnemyA 表现与血条、按 `CombatUnit` 映射 Visual、Inspector 战斗状态面板、行动结束调试按钮和切换前后日志。这些内容分别为 Task 2.4 的敌方表现、Task 2.5 的结束行动入口和 Task 2.6 的调试观察能力提供了前置验证，但尚不等同于正式攻击交互、游戏 UI 或结构化结果通知
 
-- [ ] Task 2.4 普通攻击接入战斗流程
-  - 状态：未开始
+- [x] Task 2.4 普通攻击接入战斗流程
+  - 状态：已完成
   - 完成标准：通过 `BattleController` 调用 `AttackResolver`；攻击后目标扣耐久，目标血条刷新；HP 归零后进入死亡状态
-  - 验证方式：EditMode 测试覆盖相邻攻击、非相邻失败、扣血、死亡；Unity Play Mode 手动验证血条刷新
-  - 备注：EnemyA 逻辑对象、表现对象和血条已在 Task 2.3 验证阶段提前创建；本任务只补普通攻击入口、目标选择、结算后的目标表现刷新和死亡验证，不重复建设单位表现映射
+  - 验证方式：Battle、Battle.Tests、Presentation、GameLogic 与 Editor 编译通过；EditMode 测试覆盖相邻攻击、非相邻失败、致死、空目标、未注册目标、同阵营目标、死亡目标和 TeamB 反向攻击；Unity Play Mode 血条刷新、失败日志和死亡日志已由开发者手动验证通过
+  - 备注：`BattleSession` 负责成员、阵营和死亡目标校验，`AttackResolver` 保持距离与伤害结算职责；临时 Inspector 增加当前单位攻击对方的验证入口，攻击成功后按目标单位刷新血条。正式点击敌方单位选择目标仍属于 Task 2.5，结构化攻击结果仍属于 Task 2.6
 
-- [ ] Task 2.5 最小战斗输入
-  - 状态：未开始
+- [~] Task 2.5 最小战斗输入
+  - 状态：进行中
   - 完成标准：支持点击当前单位、点击格子移动、点击敌方单位普通攻击，以及最小结束回合入口
   - 验证方式：Unity Play Mode 手动验证“选单位 → 移动 / 攻击 → 回合推进”的最小闭环
   - 备注：先不做技能栏、部署拖拽、移动范围高亮和正式 TEngine `BattleMainUI`
@@ -225,6 +225,6 @@
 
 ## 下一步
 
-1. 开始 Task 2.4：通过 `BattleSession` 调用 `AttackResolver`，保持表现层不直接修改战斗状态。
-2. 补齐当前单位攻击相邻目标、非法距离、扣耐久和死亡的流程测试。
-3. 在临时入口增加最小攻击验证，并根据结算后的逻辑状态刷新目标血条和死亡表现。
+1. 开始 Task 2.5：明确棋盘点击与单位点击的优先级，避免点击单位时同时触发格子移动。
+2. 增加当前单位选择、敌方单位点击攻击和已有格子点击移动之间的最小输入路由。
+3. 复用现有 Inspector 行动结束入口，完成“选单位 → 移动 / 攻击 → 行动结束 → 回合推进”的 Play Mode 闭环。

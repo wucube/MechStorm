@@ -55,6 +55,15 @@ namespace MechStorm.Editor
                     }
                 }
 
+                if (GUILayout.Button("Attack Current Opponent"))
+                {
+                    foreach (var selectedTarget in targets)
+                    {
+                        ((TempGameEntry)selectedTarget)
+                            .AttackCurrentOpponentForDebug();
+                    }
+                }
+
                 if (GUILayout.Button("Apply Debug Damage To PlayerA"))
                 {
                     foreach (var selectedTarget in targets)

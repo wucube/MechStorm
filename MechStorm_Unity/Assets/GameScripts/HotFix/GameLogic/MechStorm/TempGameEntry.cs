@@ -317,6 +317,54 @@ namespace MechStorm.Presentation
                 $"HP={_playerAUnit.MechRuntime.CurrentDurability}/{_playerAUnit.Mech.MaxDurability}");
         }
 
+        public void AttackCurrentOpponentForDebug()
+        {
+            if (_battleSession == null)
+            {
+                Log.Error("[MechStorm] Cannot attack before BattleSession is ready.");
+                return;
+            }
+
+            var attackerUnit = _battleSession.CurrentCombatUnit;
+            var targetUnit = GetDebugAttackTarget();
+            if (targetUnit == null)
+            {
+                Log.Warning(
+                    $"[MechStorm] No debug attack target for faction " +
+                    $"{_battleSession.CurrentFaction}.");
+                return;
+            }
+
+            var durabilityBefore = targetUnit.MechRuntime.CurrentDurability;
+            try
+            {
+                _battleSession.AttackTargetCombatUnit(targetUnit);
+            }
+            catch (System.ArgumentException exception)
+            {
+                Log.Warning($"[MechStorm] Debug attack rejected: {exception.Message}");
+                return;
+            }
+            catch (System.InvalidOperationException exception)
+            {
+                Log.Warning($"[MechStorm] Debug attack rejected: {exception.Message}");
+                return;
+            }
+
+            RefreshHealthBar(targetUnit);
+            var durabilityAfter = targetUnit.MechRuntime.CurrentDurability;
+            Log.Info(
+                $"[MechStorm] {attackerUnit.Pilot.Name} attacked " +
+                $"{targetUnit.Pilot.Name}, " +
+                $"HP={durabilityBefore}->{durabilityAfter}/" +
+                $"{targetUnit.Mech.MaxDurability}");
+
+            if (targetUnit.IsDead())
+            {
+                Log.Info($"[MechStorm] {targetUnit.Pilot.Name} was destroyed.");
+            }
+        }
+
         public void EndCurrentUnitActionForDebug()
         {
             if (_battleSession == null)
@@ -339,6 +387,30 @@ namespace MechStorm.Presentation
             }
 
             LogCurrentBattleState("Current Battle State");
+        }
+
+        private CombatUnit GetDebugAttackTarget()
+        {
+            return _battleSession.CurrentFaction switch
+            {
+                CombatFaction.TeamA => _enemyAUnit,
+                CombatFaction.TeamB => _playerAUnit,
+                _ => null,
+            };
+        }
+
+        private void RefreshHealthBar(CombatUnit combatUnit)
+        {
+            if (ReferenceEquals(combatUnit, _playerAUnit))
+            {
+                RefreshPlayerAHealthBar();
+                return;
+            }
+
+            if (ReferenceEquals(combatUnit, _enemyAUnit))
+            {
+                RefreshEnemyAHealthBar();
+            }
         }
 
         private void LogCurrentBattleState(string label)

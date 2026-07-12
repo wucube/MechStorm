@@ -5,6 +5,8 @@
 
 TEngine 基于 HybridCLR + YooAsset + UniTask + Luban 构建。
 
+通用的架构分析、编码取舍、精准修改、目标驱动执行、沟通和 Git 原则统一遵循 [`ENGINEERING_COLLABORATION_GUIDELINES.md`](./ENGINEERING_COLLABORATION_GUIDELINES.md)。本文只补充 TEngine 和项目工作流的强制约束。
+
 ---
 
 ## ⚡ 强制工作流（所有任务必须遵守）

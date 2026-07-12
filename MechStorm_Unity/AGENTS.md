@@ -11,6 +11,7 @@
 1. 当前开发进度：[`DEVELOPMENT_PROGRESS.md`](./DEVELOPMENT_PROGRESS.md)
 2. TEngine 与项目工作流：[`CLAUDE.md`](./CLAUDE.md)
 3. 项目架构与开发主计划：[`MechStorm (机兵风暴) - SRPG 战棋游戏架构与开发主计划.md`](../MechStorm%20%28%E6%9C%BA%E5%85%B5%E9%A3%8E%E6%9A%B4%29%20-%20SRPG%20%E6%88%98%E6%A3%8B%E6%B8%B8%E6%88%8F%E6%9E%B6%E6%9E%84%E4%B8%8E%E5%BC%80%E5%8F%91%E4%B8%BB%E8%AE%A1%E5%88%92.md)
+4. 通用工程协作与编码原则：[`ENGINEERING_COLLABORATION_GUIDELINES.md`](./ENGINEERING_COLLABORATION_GUIDELINES.md)
 
 其中 `DEVELOPMENT_PROGRESS.md` 是当前阶段、当前任务、验收状态、决策记录和下一步开发方向的唯一进度来源。
 
@@ -19,6 +20,7 @@
 ## 项目规范来源
 
 - TEngine、HybridCLR、YooAsset、UI、资源加载、事件系统、热更边界等规范，以 `CLAUDE.md` 和 `.claude/skills/tengine-dev/references/` 为准。
+- 架构分析、编码取舍、精准修改、目标驱动执行、沟通和 Git 通用原则，以 `ENGINEERING_COLLABORATION_GUIDELINES.md` 为准。
 - 战斗系统长期架构、机制扩展、阶段性演进，以 `BATTLE_ARCHITECTURE_ROADMAP.md` 为准。
 - 当前 Sprint 进度、任务验收、阶段决策，以 `DEVELOPMENT_PROGRESS.md` 为准。
 - 外部项目与文章的架构分析位于 `ReferenceAnalyses/` 的主题目录中，文件名直接表达分析主题；这些文档用于提供职责拆分、调用流程、优缺点和踩坑案例参考，不作为高于项目决策的规范来源。

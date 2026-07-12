@@ -2,6 +2,13 @@ using MechStorm.Battle.Foundation;
 
 namespace MechStorm.Battle.Combat
 {
+    public enum CombatFaction
+    {
+        TeamA,
+        TeamB,
+        Neutral,
+    }
+
     public sealed class CombatUnit
     {
         public PilotData Pilot { get; }
@@ -27,5 +34,9 @@ namespace MechStorm.Battle.Combat
         {
             Position = position;
         }
+
+        public bool IsAlive() =>  !IsDead();
+
+        public bool IsDead() => MechRuntime.IsDestroyed;
     }
 }

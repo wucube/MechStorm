@@ -10,31 +10,71 @@ namespace MechStorm.Battle.Combat
         private readonly TurnStateMachine _turnStateMachine;
         private readonly MovementResolver _movementResolver;
         private readonly AttackResolver _attackResolver;
-        private readonly IReadOnlyList<CombatUnit> _combatUnits;
+        private readonly CombatUnitRegistry _unitRegistry;
 
         private int _currentActionUnitIndex;
 
         public BattleSession(
             int boardWidth,
             int boardHeight,
-            IEnumerable<CombatUnit> combatUnits)
+            IEnumerable<CombatUnit> teamAUnits,
+            IEnumerable<CombatUnit> teamBUnits,
+            IEnumerable<CombatUnit> neutralUnits = null)
         {
             _squareGrid = new SquareGrid(boardWidth, boardHeight);
-            _combatUnits = CreateUnitList(combatUnits);
             _movementResolver = new MovementResolver(_squareGrid);
             _attackResolver = new AttackResolver(_squareGrid);
             _turnStateMachine = new TurnStateMachine();
+            _unitRegistry = new CombatUnitRegistry(
+                teamAUnits,
+                teamBUnits,
+                neutralUnits);
+            ValidateUnitPositions(
+                _unitRegistry.GetFactionUnits(CombatFaction.TeamA),
+                nameof(teamAUnits));
+            ValidateUnitPositions(
+                _unitRegistry.GetFactionUnits(CombatFaction.TeamB),
+                nameof(teamBUnits));
+            ValidateUnitPositions(
+                _unitRegistry.GetFactionUnits(CombatFaction.Neutral),
+                nameof(neutralUnits));
+            _currentActionUnitIndex = FindNextAliveUnitIndex(
+                _unitRegistry.GetFactionUnits(CombatFaction.TeamA),
+                -1);
         }
 
         public SquareGrid Grid => _squareGrid;
 
-        public IReadOnlyList<CombatUnit> CombatUnits => _combatUnits;
+        public IReadOnlyList<CombatUnit> CombatUnits => _unitRegistry.CombatUnits;
 
         public int CurrentRoundNumber => _turnStateMachine.CurrentRoundNumber;
 
         public TurnPhase CurrentPhase => _turnStateMachine.CurrentPhase;
 
-        public CombatUnit CurrentCombatUnit => _combatUnits[_currentActionUnitIndex];
+        public CombatFaction CurrentFaction => CurrentPhase == TurnPhase.Player
+            ? CombatFaction.TeamA
+            : CombatFaction.TeamB;
+
+        public CombatUnit CurrentCombatUnit
+        {
+            get
+            {
+                var currentFactionUnits = GetCurrentFactionCombatUnits();
+                if (_currentActionUnitIndex < 0 ||
+                    _currentActionUnitIndex >= currentFactionUnits.Count)
+                {
+                    throw new InvalidOperationException("Current faction has no alive combat unit.");
+                }
+
+                var currentCombatUnit = currentFactionUnits[_currentActionUnitIndex];
+                if (currentCombatUnit.IsDead())
+                {
+                    throw new InvalidOperationException("Dead combat unit cannot act.");
+                }
+
+                return currentCombatUnit;
+            }
+        }
 
         public bool TryMoveCurrentCombatUnit(Vector2Int target)
         {
@@ -48,7 +88,7 @@ namespace MechStorm.Battle.Combat
                 throw new ArgumentNullException(nameof(targetUnit));
             }
 
-            if (!ContainsUnit(_combatUnits, targetUnit))
+            if (!_unitRegistry.Contains(targetUnit))
             {
                 throw new ArgumentException("Target unit does not belong to this battle session.", nameof(targetUnit));
             }
@@ -58,68 +98,75 @@ namespace MechStorm.Battle.Combat
 
         public void EndCurrentUnitAction()
         {
-            _currentActionUnitIndex++;
-            if (_currentActionUnitIndex < _combatUnits.Count)
+            var currentFactionUnits = GetCurrentFactionCombatUnits();
+            var nextActionUnitIndex = FindNextAliveUnitIndex(currentFactionUnits, _currentActionUnitIndex);
+            if (nextActionUnitIndex >= 0)
             {
+                _currentActionUnitIndex = nextActionUnitIndex;
                 return;
             }
 
-            _currentActionUnitIndex = 0;
             _turnStateMachine.AdvanceTurn();
+            _currentActionUnitIndex = FindNextAliveUnitIndex(GetCurrentFactionCombatUnits(), -1);
         }
 
-        private IReadOnlyList<CombatUnit> CreateUnitList(IEnumerable<CombatUnit> combatUnits)
+        public IReadOnlyList<CombatUnit> GetCurrentFactionCombatUnits()
         {
-            if (combatUnits == null)
-            {
-                throw new ArgumentNullException(nameof(combatUnits));
-            }
+            return GetFactionCombatUnits(CurrentFaction);
+        }
 
-            var unitList = new List<CombatUnit>();
-            foreach (var unit in combatUnits)
-            {
-                if (unit == null)
-                {
-                    throw new ArgumentException("Battle session cannot contain a null unit.", nameof(combatUnits));
-                }
+        public IReadOnlyList<CombatUnit> GetFactionCombatUnits(CombatFaction faction)
+        {
+            return _unitRegistry.GetFactionUnits(faction);
+        }
 
+        public CombatFaction GetCombatUnitFaction(CombatUnit combatUnit)
+        {
+            return _unitRegistry.GetFaction(combatUnit);
+        }
+
+        public IReadOnlyList<CombatUnit> GetAllAliveCombatUnits()
+        {
+            return _unitRegistry.GetAliveUnits();
+        }
+
+        public IReadOnlyList<CombatUnit> GetAllDeadCombatUnits()
+        {
+            return _unitRegistry.GetDeadUnits();
+        }
+
+        public bool AreFactionUnitsDead(CombatFaction faction)
+        {
+            return _unitRegistry.AreFactionUnitsDead(faction);
+        }
+
+        private void ValidateUnitPositions(
+            IReadOnlyList<CombatUnit> units,
+            string parameterName)
+        {
+            foreach (var unit in units)
+            {
                 if (!_squareGrid.IsInside(unit.Position))
                 {
                     throw new ArgumentOutOfRangeException(
-                        nameof(combatUnits),
+                        parameterName,
                         unit.Position,
                         "Combat unit position must be inside the battle grid.");
                 }
-
-                if (ContainsUnit(unitList, unit))
-                {
-                    throw new ArgumentException(
-                        "A combat unit can only be added to a battle session once.",
-                        nameof(combatUnits));
-                }
-
-                unitList.Add(unit);
             }
-
-            if (unitList.Count == 0)
-            {
-                throw new ArgumentException("Battle session must contain at least one unit.", nameof(combatUnits));
-            }
-
-            return unitList.AsReadOnly();
         }
 
-        private static bool ContainsUnit(IReadOnlyList<CombatUnit> units, CombatUnit targetUnit)
+        private static int FindNextAliveUnitIndex(IReadOnlyList<CombatUnit> units, int currentUnitIndex)
         {
-            for (var i = 0; i < units.Count; i++)
+            for (var i = currentUnitIndex + 1; i < units.Count; i++)
             {
-                if (ReferenceEquals(units[i], targetUnit))
+                if (units[i].IsAlive())
                 {
-                    return true;
+                    return i;
                 }
             }
 
-            return false;
+            return -1;
         }
     }
 }

@@ -265,10 +265,19 @@ namespace MechStorm.Presentation
                 return;
             }
 
+            var factory = new CombatUnitFactory();
+            var enemyPilot = new PilotData(2, "Enemy A", 3);
+            var enemyMech = new MechData(2, "Training Enemy Mech", 10, 100, 3);
+            var enemyUnit = factory.Create(
+                enemyPilot,
+                enemyMech,
+                new Vector2Int(_boardWidth - 1, _boardHeight - 1));
+
             _battleSession = new BattleSession(
                 _boardWidth,
                 _boardHeight,
-                new[] { _playerAUnit });
+                new[] { _playerAUnit },
+                new[] { enemyUnit });
         }
     }
 }

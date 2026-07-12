@@ -3,9 +3,9 @@
 ## 当前阶段
 
 - 当前里程碑：P1 / Sprint 2
-- 当前任务：Task 2.1 战斗流程控制器规划
+- 当前任务：Task 2.3 行动流程与回合推进规划
 - 当前状态：待开始
-- 最后更新：2026-06-28
+- 最后更新：2026-07-12
 
 ## 状态约定
 
@@ -121,27 +121,29 @@
 
 ## P1 / Sprint 2~3：核心机制深化
 
-- [ ] Sprint 2：实体与战斗深化
-  - 状态：待开始
+- [~] Sprint 2：实体与战斗深化
+  - 状态：进行中
   - 总目标：从单单位移动演示升级为最小战斗流程，支持多个单位、当前行动单位、移动 / 普通攻击、扣血、死亡、回合推进与表现同步
-  - 完成标准：场上至少有 PlayerA 与 EnemyA；玩家可移动、攻击相邻敌人；敌人扣血后血条刷新；HP 为 0 后不再行动；回合可从 Player 切到 Enemy 再切回 Player
+  - 完成标准：场上至少有 TeamA 与 TeamB 各一个单位；当前单位可移动、攻击相邻敌对单位；目标扣血后血条刷新；HP 为 0 后不再行动；回合可从 TeamA 切到 TeamB 再切回 TeamA
   - 备注：继续使用 `TempGameEntry` 作为测试入口，不立即接 TEngine 正式流程；先把 Battle 纯 C# 核心机制跑通
 
-- [ ] Task 2.1 战斗流程控制器：`BattleController` / `BattleSession`
-  - 状态：未开始
+- [x] Task 2.1 战斗流程控制器：`BattleController` / `BattleSession`
+  - 状态：已完成
   - 完成标准：集中管理棋盘、单位列表、当前回合、当前行动方与当前行动单位；提供移动、攻击、结束行动等入口
-  - 验证方式：EditMode 测试覆盖初始化、当前行动单位、行动结果与基础异常输入
-  - 备注：不要让 `TempGameEntry` 继续直接持有全部战斗规则；`TempGameEntry` 只创建测试战斗并同步表现
+  - 验证方式：`MechStorm.Battle.Tests` 与 `GameLogic` 编译通过；EditMode 测试覆盖初始化、当前行动单位、移动、攻击、结束行动与基础异常输入，已由开发者在 Unity Test Runner 手动验证通过
+  - 备注：`BattleSession` 已作为棋盘、单位注册表、回合状态机和规则服务的统一入口；`TempGameEntry` 只创建测试战斗，`BattlePresentationController` 通过会话执行移动；结构化 `BattleActionResult` 仍按 Task 2.6 引入
 
-- [ ] Task 2.2 多单位与阵营管理
-  - 状态：未开始
-  - 完成标准：支持 Player / Enemy 至少两个阵营；能查询存活单位、死亡单位、当前阵营单位；死亡单位不能再行动
-  - 验证方式：EditMode 测试覆盖阵营查询、死亡跳过与所有单位死亡判断
+- [x] Task 2.2 多单位与阵营管理
+  - 状态：已完成
+  - 完成标准：支持 `TeamA / TeamB` 至少两个稳定阵营；能查询存活单位、死亡单位、当前阵营单位；死亡单位不能再行动
+  - 验证方式：`MechStorm.Battle.Tests` 与 `GameLogic` 编译通过；EditMode 测试覆盖阵营与成员查询、Neutral、死亡跳过、死亡单位禁止行动及阵营全灭判断，已由开发者在 Unity Test Runner 手动验证通过
+  - 备注：实际范围比原计划略有扩展：新增可选 `Neutral` 阵营；拆出无 Grid 依赖的 `CombatUnitRegistry`，统一负责成员、阵营、存活、死亡、空集合、重复注册和跨阵营重复校验；单位初始位置合法性仍由拥有棋盘的 `BattleSession` 校验。当前 `BattleSession` 已具备“阵营内查找下一存活单位并切换阵营”的临时逻辑，属于 Task 2.3 的提前雏形，但尚未拆出 `TurnCoordinator`、建立行动状态与新回合重置，因此不视为 Task 2.3 完成
 
 - [ ] Task 2.3 行动流程与回合推进：`TurnCoordinator`
   - 状态：未开始
   - 完成标准：单位行动后能进入下一个可行动单位；阵营内所有可行动单位完成后切换阵营；新回合重置行动状态
   - 验证方式：EditMode 测试覆盖行动完成、死亡跳过、阵营切换与回合循环
+  - 备注：`BattleSession.EndCurrentUnitAction()` 已提前实现最小索引推进与阵营切换；本任务应将该职责收敛到 `TurnCoordinator`，补齐显式行动状态和新回合重置，不重复实现阵营注册与查询
 
 - [ ] Task 2.4 普通攻击接入战斗流程
   - 状态：未开始
@@ -204,6 +206,7 @@
 | 2026-06-28 | Buff / Modifier / Trigger 后置，技能雏形可在普通攻击稳定后引入 | Buff 会牵扯持续时间、叠层、触发时机、属性修正、驱散和免疫，过早引入会让基础战斗流程复杂化 | Sprint 2 不做 Buff / 技能；Sprint 3 可做最小主动技能；P2 再引入 Buff、Modifier、Trigger 与轻量 GAS 变种 |
 | 2026-06-28 | 输入 UI 分阶段接入，先做最小战斗输入 | 技能栏、目标选择、部署拖拽和正式 UI 都依赖稳定的战斗流程和单位管理 | Sprint 2 只做点击单位、点击格子移动、点击敌方普通攻击与结束回合；Sprint 3 再做技能按钮和目标选择；部署拖拽单独作为 BattlePreparation / Deployment 阶段 |
 | 2026-06-28 | 轻量战斗快照与调试导出排入 Sprint 2 后段 | 离线调试需要依赖 BattleController、多单位、回合推进和结果通知，太早做会缺少稳定数据源；但等到 P2 再做会降低后续逻辑调试效率 | Sprint 2 在 Task 2.6 之后追加 Task 2.7，只做 `BattleSnapshot`、关键 `BattleActionLog` 和 JSON 诊断导出；完整 Command Replay、Result Replay、悔棋和录像仍放到 Sprint 5 / P2 |
+| 2026-07-12 | 分离持久阵营、流程阶段、行动角色与本地敌我视角 | `Player / Enemy` 是客户端相对关系，不能作为 PVP 服务端状态和回放日志中的稳定身份；`Attacker / Defender` 也只描述单次行动 | Task 2.2 使用 `TeamA / TeamB / Neutral` 表达稳定阵营，Task 2.3 的流程阶段不再充当阵营参数；Task 2.7 与后续 PVP 回放记录统一的客观权威日志，客户端按观察者阵营映射 `Ally / Enemy / Neutral` |
 
 ## Git 版本管理约定
 
@@ -221,6 +224,6 @@
 
 ## 下一步
 
-1. 从 `main` 新建 `feature/p1-sprint2-battle-controller` 分支。
-2. 开始 Task 2.1：设计 `BattleController` / `BattleSession` 的最小职责和接口。
-3. 优先补 EditMode 测试，验证多单位、当前行动单位、移动 / 攻击入口与回合推进的核心规则。
+1. 开始 Task 2.3：明确 `TurnCoordinator` 与 `BattleSession`、`TurnStateMachine`、`CombatUnitRegistry` 的职责边界。
+2. 将当前单位索引、死亡跳过、阵营切换和新回合行动状态重置收敛到 `TurnCoordinator`。
+3. 补齐行动完成、死亡跳过、阵营切换、回合循环和行动状态重置的 EditMode 测试。

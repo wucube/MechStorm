@@ -3,7 +3,7 @@
 ## 当前阶段
 
 - 当前里程碑：P1 / Sprint 2
-- 当前任务：Task 2.3 行动流程与回合推进规划
+- 当前任务：Task 2.4 普通攻击接入战斗流程
 - 当前状态：待开始
 - 最后更新：2026-07-12
 
@@ -139,16 +139,17 @@
   - 验证方式：`MechStorm.Battle.Tests` 与 `GameLogic` 编译通过；EditMode 测试覆盖阵营与成员查询、Neutral、死亡跳过、死亡单位禁止行动及阵营全灭判断，已由开发者在 Unity Test Runner 手动验证通过
   - 备注：实际范围比原计划略有扩展：新增可选 `Neutral` 阵营；拆出无 Grid 依赖的 `CombatUnitRegistry`，统一负责成员、阵营、存活、死亡、空集合、重复注册和跨阵营重复校验；单位初始位置合法性仍由拥有棋盘的 `BattleSession` 校验。当前 `BattleSession` 已具备“阵营内查找下一存活单位并切换阵营”的临时逻辑，属于 Task 2.3 的提前雏形，但尚未拆出 `TurnCoordinator`、建立行动状态与新回合重置，因此不视为 Task 2.3 完成
 
-- [ ] Task 2.3 行动流程与回合推进：`TurnCoordinator`
-  - 状态：未开始
+- [x] Task 2.3 行动流程与回合推进：`TurnCoordinator`
+  - 状态：已完成
   - 完成标准：单位行动后能进入下一个可行动单位；阵营内所有可行动单位完成后切换阵营；新回合重置行动状态
-  - 验证方式：EditMode 测试覆盖行动完成、死亡跳过、阵营切换与回合循环
-  - 备注：`BattleSession.EndCurrentUnitAction()` 已提前实现最小索引推进与阵营切换；本任务应将该职责收敛到 `TurnCoordinator`，补齐显式行动状态和新回合重置，不重复实现阵营注册与查询
+  - 验证方式：`MechStorm.Battle.Tests`、`MechStorm.Presentation`、`GameLogic` 与 `Assembly-CSharp-Editor` 编译通过；Unity Test Runner 全部测试由开发者手动验证通过；Play Mode 已验证 TeamA / TeamB 切换、当前单位变化、回合数递增和对应单位表现移动
+  - 备注：已用 `TurnCoordinator` 替代仅切换 Player / Enemy 的 `TurnStateMachine` / `TurnPhase`，集中管理当前回合、当前阵营、当前单位索引、死亡跳过和阵营推进；`BattleSession` 只保留委托入口，Neutral 不进入自动行动顺序。实际范围略有扩展：补齐 EnemyA 表现与血条、按 `CombatUnit` 映射 Visual、Inspector 战斗状态面板、行动结束调试按钮和切换前后日志。这些内容分别为 Task 2.4 的敌方表现、Task 2.5 的结束行动入口和 Task 2.6 的调试观察能力提供了前置验证，但尚不等同于正式攻击交互、游戏 UI 或结构化结果通知
 
 - [ ] Task 2.4 普通攻击接入战斗流程
   - 状态：未开始
   - 完成标准：通过 `BattleController` 调用 `AttackResolver`；攻击后目标扣耐久，目标血条刷新；HP 归零后进入死亡状态
   - 验证方式：EditMode 测试覆盖相邻攻击、非相邻失败、扣血、死亡；Unity Play Mode 手动验证血条刷新
+  - 备注：EnemyA 逻辑对象、表现对象和血条已在 Task 2.3 验证阶段提前创建；本任务只补普通攻击入口、目标选择、结算后的目标表现刷新和死亡验证，不重复建设单位表现映射
 
 - [ ] Task 2.5 最小战斗输入
   - 状态：未开始
@@ -224,6 +225,6 @@
 
 ## 下一步
 
-1. 开始 Task 2.3：明确 `TurnCoordinator` 与 `BattleSession`、`TurnStateMachine`、`CombatUnitRegistry` 的职责边界。
-2. 将当前单位索引、死亡跳过、阵营切换和新回合行动状态重置收敛到 `TurnCoordinator`。
-3. 补齐行动完成、死亡跳过、阵营切换、回合循环和行动状态重置的 EditMode 测试。
+1. 开始 Task 2.4：通过 `BattleSession` 调用 `AttackResolver`，保持表现层不直接修改战斗状态。
+2. 补齐当前单位攻击相邻目标、非法距离、扣耐久和死亡的流程测试。
+3. 在临时入口增加最小攻击验证，并根据结算后的逻辑状态刷新目标血条和死亡表现。

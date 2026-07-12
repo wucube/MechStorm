@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MechStorm.Battle.Combat;
 using TEngine;
 using UnityEngine;
@@ -27,13 +28,28 @@ namespace MechStorm.Presentation
 
         private Transform _playerA;
         private CombatUnitVisual _playerAVisual;
+        private Transform _enemyA;
+        private CombatUnitVisual _enemyAVisual;
         private GridCoordinateConverter _coordConverter;
         private BattleBoardInputter _boardInputter;
         private BattlePresentationController _presentationController;
         private BattleSession _battleSession;
         private CombatUnit _playerAUnit;
+        private CombatUnit _enemyAUnit;
         private Transform _playerAHealthBarAnchor;
+        private Transform _enemyAHealthBarAnchor;
         private UnitHealthBarView _playerAHealthBarView;
+        private UnitHealthBarView _enemyAHealthBarView;
+
+        public bool IsBattleReady => _battleSession != null;
+
+        public int CurrentRoundNumber => _battleSession?.CurrentRoundNumber ?? 0;
+
+        public string CurrentFactionName =>
+            _battleSession?.CurrentFaction.ToString() ?? "Not Ready";
+
+        public string CurrentUnitName =>
+            _battleSession?.CurrentCombatUnit.Pilot.Name ?? "Not Ready";
 
         void Start()
         {
@@ -53,6 +69,7 @@ namespace MechStorm.Presentation
             LogBoardValidation();
             CreateDebugMarkers();
             CreatePlayerA();
+            CreateEnemyA();
             CreateBattleSession();
             CreateBoardInputter();
             CreatePresentationController();
@@ -157,6 +174,65 @@ namespace MechStorm.Presentation
             _playerAHealthBarView.RefreshFacing();
         }
 
+        private void CreateEnemyA()
+        {
+            CreateEnemyAUnit();
+            CreateEnemyAVisual();
+            CreateEnemyAHealthBar();
+        }
+
+        private void CreateEnemyAUnit()
+        {
+            var factory = new CombatUnitFactory();
+            var pilot = new PilotData(2, "Enemy A", 3);
+            var mech = new MechData(2, "Training Enemy Mech", 10, 100, 3);
+
+            _enemyAUnit = factory.Create(
+                pilot,
+                mech,
+                new Vector2Int(_boardWidth - 1, _boardHeight - 1));
+        }
+
+        private void CreateEnemyAVisual()
+        {
+            var unitObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            unitObject.name = "EnemyA";
+            unitObject.transform.localScale = new Vector3(
+                _cellSize * 0.6f,
+                _cellSize,
+                _cellSize * 0.6f);
+
+            var anchorObject = new GameObject("HealthBarAnchor");
+            anchorObject.transform.SetParent(unitObject.transform, false);
+            anchorObject.transform.localPosition = Vector3.up * 0.8f;
+            anchorObject.transform.localScale = Vector3.one;
+            _enemyAHealthBarAnchor = anchorObject.transform;
+
+            _enemyA = unitObject.transform;
+            _enemyAVisual = new CombatUnitVisual(
+                _enemyA,
+                _coordConverter,
+                _enemyA.localScale.y * 0.5f);
+            _enemyAVisual.RefreshPosition(_enemyAUnit.Position);
+            LogUnitStatus(_enemyAUnit, _enemyA.position);
+        }
+
+        private void CreateEnemyAHealthBar()
+        {
+            if (_enemyAHealthBarAnchor == null || _enemyAUnit == null)
+            {
+                Log.Error("[MechStorm] EnemyA health bar dependencies are not ready.");
+                return;
+            }
+
+            var camera = _camera != null ? _camera : Camera.main;
+            _enemyAHealthBarView = new UnitHealthBarView(
+                _enemyAHealthBarAnchor,
+                camera);
+            RefreshEnemyAHealthBar();
+            _enemyAHealthBarView.RefreshFacing();
+        }
+
         private void LogUnitStatus(CombatUnit combatUnit, Vector3 worldPosition)
         {
             Log.Info(
@@ -176,7 +252,10 @@ namespace MechStorm.Presentation
 
             if (_presentationController.Tick())
             {
-                Log.Info($"[MechStorm] PlayerA moved to GridPosition: {_playerAUnit.Position}, WorldPosition: {_playerA.position}");
+                var currentUnit = _battleSession.CurrentCombatUnit;
+                Log.Info(
+                    $"[MechStorm] {currentUnit.Pilot.Name} moved to " +
+                    $"GridPosition: {currentUnit.Position}");
             }
         }
 
@@ -192,9 +271,22 @@ namespace MechStorm.Presentation
                 _playerAUnit.Mech.MaxDurability);
         }
 
+        private void RefreshEnemyAHealthBar()
+        {
+            if (_enemyAUnit == null || _enemyAHealthBarView == null)
+            {
+                return;
+            }
+
+            _enemyAHealthBarView.RefreshValue(
+                _enemyAUnit.MechRuntime.CurrentDurability,
+                _enemyAUnit.Mech.MaxDurability);
+        }
+
         private void RefreshHealthBarFacing()
         {
             _playerAHealthBarView?.RefreshFacing();
+            _enemyAHealthBarView?.RefreshFacing();
         }
 
         public void ApplyDebugDamageToPlayerA()
@@ -225,6 +317,40 @@ namespace MechStorm.Presentation
                 $"HP={_playerAUnit.MechRuntime.CurrentDurability}/{_playerAUnit.Mech.MaxDurability}");
         }
 
+        public void EndCurrentUnitActionForDebug()
+        {
+            if (_battleSession == null)
+            {
+                Log.Error("[MechStorm] Cannot end unit action before BattleSession is ready.");
+                return;
+            }
+
+            LogCurrentBattleState("Before End Action");
+            _battleSession.EndCurrentUnitAction();
+            LogCurrentBattleState("After End Action");
+        }
+
+        public void LogCurrentBattleStateForDebug()
+        {
+            if (_battleSession == null)
+            {
+                Log.Error("[MechStorm] Cannot log battle state before BattleSession is ready.");
+                return;
+            }
+
+            LogCurrentBattleState("Current Battle State");
+        }
+
+        private void LogCurrentBattleState(string label)
+        {
+            var currentUnit = _battleSession.CurrentCombatUnit;
+            Log.Info(
+                $"[MechStorm] {label}: " +
+                $"Round={_battleSession.CurrentRoundNumber}, " +
+                $"Faction={_battleSession.CurrentFaction}, " +
+                $"Unit={currentUnit.Pilot.Name}/{currentUnit.Mech.Name}");
+        }
+
         private void CreateBoardInputter()
         {
             var camera = _camera != null ? _camera : Camera.main;
@@ -245,39 +371,41 @@ namespace MechStorm.Presentation
 
         private void CreatePresentationController()
         {
-            if (_battleSession == null || _playerAVisual == null || _boardInputter == null)
+            if (_battleSession == null ||
+                _playerAVisual == null ||
+                _enemyAVisual == null ||
+                _boardInputter == null)
             {
                 Log.Error("[MechStorm] BattlePresentationController dependencies are not ready.");
                 return;
             }
 
+            var unitVisualsByCombatUnit =
+                new Dictionary<CombatUnit, CombatUnitVisual>
+                {
+                    [_playerAUnit] = _playerAVisual,
+                    [_enemyAUnit] = _enemyAVisual,
+                };
             _presentationController = new BattlePresentationController(
                 _battleSession,
-                _playerAVisual,
+                unitVisualsByCombatUnit,
                 _boardInputter);
         }
 
         private void CreateBattleSession()
         {
-            if (_playerAUnit == null)
+            if (_playerAUnit == null || _enemyAUnit == null)
             {
-                Log.Error("[MechStorm] BattleSession requires PlayerA.");
+                Log.Error("[MechStorm] BattleSession requires PlayerA and EnemyA.");
                 return;
             }
-
-            var factory = new CombatUnitFactory();
-            var enemyPilot = new PilotData(2, "Enemy A", 3);
-            var enemyMech = new MechData(2, "Training Enemy Mech", 10, 100, 3);
-            var enemyUnit = factory.Create(
-                enemyPilot,
-                enemyMech,
-                new Vector2Int(_boardWidth - 1, _boardHeight - 1));
 
             _battleSession = new BattleSession(
                 _boardWidth,
                 _boardHeight,
                 new[] { _playerAUnit },
-                new[] { enemyUnit });
+                new[] { _enemyAUnit });
+            LogCurrentBattleState("Battle Started");
         }
     }
 }

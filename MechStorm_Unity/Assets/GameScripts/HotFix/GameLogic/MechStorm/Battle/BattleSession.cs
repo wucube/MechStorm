@@ -7,12 +7,10 @@ namespace MechStorm.Battle.Combat
     public sealed class BattleSession
     {
         private readonly SquareGrid _squareGrid;
-        private readonly TurnStateMachine _turnStateMachine;
         private readonly MovementResolver _movementResolver;
         private readonly AttackResolver _attackResolver;
         private readonly CombatUnitRegistry _unitRegistry;
-
-        private int _currentActionUnitIndex;
+        private readonly TurnCoordinator _turnCoordinator;
 
         public BattleSession(
             int boardWidth,
@@ -24,7 +22,6 @@ namespace MechStorm.Battle.Combat
             _squareGrid = new SquareGrid(boardWidth, boardHeight);
             _movementResolver = new MovementResolver(_squareGrid);
             _attackResolver = new AttackResolver(_squareGrid);
-            _turnStateMachine = new TurnStateMachine();
             _unitRegistry = new CombatUnitRegistry(
                 teamAUnits,
                 teamBUnits,
@@ -38,43 +35,18 @@ namespace MechStorm.Battle.Combat
             ValidateUnitPositions(
                 _unitRegistry.GetFactionUnits(CombatFaction.Neutral),
                 nameof(neutralUnits));
-            _currentActionUnitIndex = FindNextAliveUnitIndex(
-                _unitRegistry.GetFactionUnits(CombatFaction.TeamA),
-                -1);
+            _turnCoordinator = new TurnCoordinator(_unitRegistry);
         }
 
         public SquareGrid Grid => _squareGrid;
 
         public IReadOnlyList<CombatUnit> CombatUnits => _unitRegistry.CombatUnits;
 
-        public int CurrentRoundNumber => _turnStateMachine.CurrentRoundNumber;
+        public int CurrentRoundNumber => _turnCoordinator.CurrentRoundNumber;
 
-        public TurnPhase CurrentPhase => _turnStateMachine.CurrentPhase;
+        public CombatFaction CurrentFaction => _turnCoordinator.CurrentFaction;
 
-        public CombatFaction CurrentFaction => CurrentPhase == TurnPhase.Player
-            ? CombatFaction.TeamA
-            : CombatFaction.TeamB;
-
-        public CombatUnit CurrentCombatUnit
-        {
-            get
-            {
-                var currentFactionUnits = GetCurrentFactionCombatUnits();
-                if (_currentActionUnitIndex < 0 ||
-                    _currentActionUnitIndex >= currentFactionUnits.Count)
-                {
-                    throw new InvalidOperationException("Current faction has no alive combat unit.");
-                }
-
-                var currentCombatUnit = currentFactionUnits[_currentActionUnitIndex];
-                if (currentCombatUnit.IsDead())
-                {
-                    throw new InvalidOperationException("Dead combat unit cannot act.");
-                }
-
-                return currentCombatUnit;
-            }
-        }
+        public CombatUnit CurrentCombatUnit => _turnCoordinator.CurrentCombatUnit;
 
         public bool TryMoveCurrentCombatUnit(Vector2Int target)
         {
@@ -98,16 +70,7 @@ namespace MechStorm.Battle.Combat
 
         public void EndCurrentUnitAction()
         {
-            var currentFactionUnits = GetCurrentFactionCombatUnits();
-            var nextActionUnitIndex = FindNextAliveUnitIndex(currentFactionUnits, _currentActionUnitIndex);
-            if (nextActionUnitIndex >= 0)
-            {
-                _currentActionUnitIndex = nextActionUnitIndex;
-                return;
-            }
-
-            _turnStateMachine.AdvanceTurn();
-            _currentActionUnitIndex = FindNextAliveUnitIndex(GetCurrentFactionCombatUnits(), -1);
+            _turnCoordinator.EndCurrentUnitAction();
         }
 
         public IReadOnlyList<CombatUnit> GetCurrentFactionCombatUnits()
@@ -156,17 +119,5 @@ namespace MechStorm.Battle.Combat
             }
         }
 
-        private static int FindNextAliveUnitIndex(IReadOnlyList<CombatUnit> units, int currentUnitIndex)
-        {
-            for (var i = currentUnitIndex + 1; i < units.Count; i++)
-            {
-                if (units[i].IsAlive())
-                {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
     }
 }

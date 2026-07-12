@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using MechStorm.Battle.Combat;
 
 namespace MechStorm.Presentation
@@ -6,16 +7,18 @@ namespace MechStorm.Presentation
     public sealed class BattlePresentationController
     {
         private readonly BattleSession _battleSession;
-        private readonly CombatUnitVisual _unitVisual;
+        private readonly IReadOnlyDictionary<CombatUnit, CombatUnitVisual>
+            _unitVisualsByCombatUnit;
         private readonly BattleBoardInputter _battleBoardInputter;
 
         public BattlePresentationController(
             BattleSession battleSession,
-            CombatUnitVisual combatUnitVisual,
+            IReadOnlyDictionary<CombatUnit, CombatUnitVisual> unitVisualsByCombatUnit,
             BattleBoardInputter battleBoardInputter)
         {
             _battleSession = battleSession ?? throw new ArgumentNullException(nameof(battleSession));
-            _unitVisual = combatUnitVisual ?? throw new ArgumentNullException(nameof(combatUnitVisual));
+            _unitVisualsByCombatUnit = unitVisualsByCombatUnit
+                ?? throw new ArgumentNullException(nameof(unitVisualsByCombatUnit));
             _battleBoardInputter = battleBoardInputter ?? throw new ArgumentNullException(nameof(battleBoardInputter));
         }
 
@@ -26,12 +29,21 @@ namespace MechStorm.Presentation
                 return false;
             }
 
+            var currentCombatUnit = _battleSession.CurrentCombatUnit;
+            if (!_unitVisualsByCombatUnit.TryGetValue(
+                    currentCombatUnit,
+                    out var currentUnitVisual))
+            {
+                throw new InvalidOperationException(
+                    "Current combat unit does not have a presentation visual.");
+            }
+
             if (!_battleSession.TryMoveCurrentCombatUnit(targetGridPos))
             {
                 return false;
             }
 
-            _unitVisual.RefreshPosition(_battleSession.CurrentCombatUnit.Position);
+            currentUnitVisual.RefreshPosition(currentCombatUnit.Position);
             return true;
         }
     }

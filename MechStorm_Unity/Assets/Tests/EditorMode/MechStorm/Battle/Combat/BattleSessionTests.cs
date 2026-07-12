@@ -19,7 +19,6 @@ namespace MechStorm.Battle.Tests.Combat
             Assert.AreEqual(5, session.Grid.Height);
             Assert.AreEqual(2, session.CombatUnits.Count);
             Assert.AreSame(playerUnit, session.CurrentCombatUnit);
-            Assert.AreEqual(TurnPhase.Player, session.CurrentPhase);
             Assert.AreEqual(CombatFaction.TeamA, session.CurrentFaction);
             Assert.AreEqual(1, session.CurrentRoundNumber);
         }
@@ -103,19 +102,18 @@ namespace MechStorm.Battle.Tests.Combat
             session.EndCurrentUnitAction();
 
             Assert.AreSame(enemyUnit, session.CurrentCombatUnit);
-            Assert.AreEqual(TurnPhase.Enemy, session.CurrentPhase);
             Assert.AreEqual(CombatFaction.TeamB, session.CurrentFaction);
             Assert.AreEqual(1, session.CurrentRoundNumber);
 
             session.EndCurrentUnitAction();
 
             Assert.AreSame(playerUnit, session.CurrentCombatUnit);
-            Assert.AreEqual(TurnPhase.Player, session.CurrentPhase);
+            Assert.AreEqual(CombatFaction.TeamA, session.CurrentFaction);
             Assert.AreEqual(2, session.CurrentRoundNumber);
         }
 
         [Test]
-        public void GetCurrentFactionCombatUnits_ReturnsUnitsForCurrentPhase()
+        public void GetCurrentFactionCombatUnits_ReturnsUnitsForCurrentFaction()
         {
             var playerA = CreateCombatUnit(1, new Vector2Int(1, 1));
             var playerB = CreateCombatUnit(2, new Vector2Int(1, 2));
@@ -224,7 +222,7 @@ namespace MechStorm.Battle.Tests.Combat
 
             session.EndCurrentUnitAction();
 
-            Assert.AreEqual(TurnPhase.Enemy, session.CurrentPhase);
+            Assert.AreEqual(CombatFaction.TeamB, session.CurrentFaction);
             Assert.AreSame(aliveEnemy, session.CurrentCombatUnit);
         }
 

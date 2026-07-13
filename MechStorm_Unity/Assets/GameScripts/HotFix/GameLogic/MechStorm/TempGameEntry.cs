@@ -25,6 +25,8 @@ namespace MechStorm.Presentation
         private Camera _camera;
         [SerializeField]
         private int _debugDamage = 10;
+        [SerializeField]
+        private LayerMask _battleInputLayerMask = Physics.DefaultRaycastLayers;
 
         private Transform _playerA;
         private CombatUnitVisual _playerAVisual;
@@ -123,6 +125,11 @@ namespace MechStorm.Presentation
             if (marker.TryGetComponent<Renderer>(out var renderer))
             {
                 renderer.material.color = color;
+            }
+
+            if (marker.TryGetComponent<Collider>(out var markerCollider))
+            {
+                markerCollider.enabled = false;
             }
         }
 
@@ -250,12 +257,36 @@ namespace MechStorm.Presentation
                 return;
             }
 
-            if (_presentationController.Tick())
+            var inputAction = _presentationController.Tick(out var actionUnit);
+            switch (inputAction)
             {
-                var currentUnit = _battleSession.CurrentCombatUnit;
-                Log.Info(
-                    $"[MechStorm] {currentUnit.Pilot.Name} moved to " +
-                    $"GridPosition: {currentUnit.Position}");
+                case BattleInputAction.CurrentUnitSelected:
+                    Log.Info(
+                        $"[MechStorm] Selected current unit " +
+                        $"{actionUnit.Pilot.Name}.");
+                    break;
+                case BattleInputAction.CurrentUnitMoved:
+                    Log.Info(
+                        $"[MechStorm] {actionUnit.Pilot.Name} moved to " +
+                        $"GridPosition: {actionUnit.Position}");
+                    break;
+                case BattleInputAction.TargetAttacked:
+                    RefreshHealthBar(actionUnit);
+                    Log.Info(
+                        $"[MechStorm] {actionUnit.Pilot.Name} was attacked, " +
+                        $"HP={actionUnit.MechRuntime.CurrentDurability}/" +
+                        $"{actionUnit.Mech.MaxDurability}");
+                    if (actionUnit.IsDead())
+                    {
+                        Log.Info(
+                            $"[MechStorm] {actionUnit.Pilot.Name} was destroyed.");
+                    }
+                    break;
+                case BattleInputAction.ActionRejected:
+                    Log.Warning(
+                        $"[MechStorm] Battle input rejected: " +
+                        $"{_presentationController.LastRejectionReason}");
+                    break;
             }
         }
 
@@ -375,6 +406,7 @@ namespace MechStorm.Presentation
 
             LogCurrentBattleState("Before End Action");
             _battleSession.EndCurrentUnitAction();
+            _presentationController?.ClearSelection();
             LogCurrentBattleState("After End Action");
         }
 
@@ -438,7 +470,25 @@ namespace MechStorm.Presentation
                 return;
             }
 
-            _boardInputter = new BattleBoardInputter(camera, boardCollider, _coordConverter);
+            if (!_playerA.TryGetComponent<Collider>(out var playerACollider) ||
+                !_enemyA.TryGetComponent<Collider>(out var enemyACollider))
+            {
+                Log.Error("[MechStorm] Combat unit input requires unit colliders.");
+                return;
+            }
+
+            var combatUnitColliders =
+                new Dictionary<Collider, CombatUnit>
+                {
+                    [playerACollider] = _playerAUnit,
+                    [enemyACollider] = _enemyAUnit,
+                };
+            _boardInputter = new BattleBoardInputter(
+                camera,
+                boardCollider,
+                _coordConverter,
+                combatUnitColliders,
+                _battleInputLayerMask.value);
         }
 
         private void CreatePresentationController()
@@ -452,16 +502,13 @@ namespace MechStorm.Presentation
                 return;
             }
 
-            var unitVisualsByCombatUnit =
+            var combatUnitVisuals =
                 new Dictionary<CombatUnit, CombatUnitVisual>
                 {
                     [_playerAUnit] = _playerAVisual,
                     [_enemyAUnit] = _enemyAVisual,
                 };
-            _presentationController = new BattlePresentationController(
-                _battleSession,
-                unitVisualsByCombatUnit,
-                _boardInputter);
+            _presentationController = new BattlePresentationController(_battleSession, combatUnitVisuals, _boardInputter);
         }
 
         private void CreateBattleSession()

@@ -13,8 +13,7 @@ namespace MechStorm.Presentation
         // 整个棋盘左下角边界点在 Unity 世界中的坐标，不是 Grid(0,0) 的中心。
         public Vector3 Origin { get; }
 
-        public GridCoordinateConverter()
-            : this(1f, Vector3.zero)
+        public GridCoordinateConverter() : this(1f, Vector3.zero)
         {
         }
 

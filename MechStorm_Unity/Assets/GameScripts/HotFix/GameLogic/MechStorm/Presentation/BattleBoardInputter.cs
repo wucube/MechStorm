@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using MechStorm.Battle.Combat;
 using UnityEngine;
 using Vector2Int = MechStorm.Battle.Foundation.Vector2Int;
 
@@ -9,35 +11,46 @@ namespace MechStorm.Presentation
         private const float MAX_RAY_DISTANCE = 1000f;
 
         private readonly Camera _camera;
-        private readonly Collider _collider;
+        private readonly Collider _boardCollider;
         private readonly GridCoordinateConverter _coordinateConverter;
+        // Unity Collider 到纯 C# 战斗单位的点击映射。
+        private readonly IReadOnlyDictionary<Collider, CombatUnit> _combatUnitColliders;
+        private readonly int _layerMask;
 
-        public BattleBoardInputter(Camera camera, Collider collider, GridCoordinateConverter coordinateConverter)
+        public BattleBoardInputter(Camera camera, Collider boardCollider, GridCoordinateConverter coordinateConverter,
+            IReadOnlyDictionary<Collider, CombatUnit> combatUnitColliders, int layerMask)
         {
             _camera = camera ? camera : throw new ArgumentNullException(nameof(camera));
-            _collider = collider ? collider : throw new ArgumentNullException(nameof(collider));
+            _boardCollider = boardCollider ? boardCollider : throw new ArgumentNullException(nameof(boardCollider));
             _coordinateConverter = coordinateConverter ?? throw new ArgumentNullException(nameof(coordinateConverter));
+            _combatUnitColliders = combatUnitColliders ?? throw new ArgumentNullException(nameof(combatUnitColliders));
+            _layerMask = layerMask;
         }
 
-        public bool Tick(out Vector2Int gridPosition, out Vector3 worldPosition)
+        public bool Tick(out CombatUnit combatUnit, out Vector2Int gridPosition)
         {
+            combatUnit = null;
             gridPosition = default;
-            worldPosition = default;
 
-            if (!Input.GetMouseButtonDown(0))
-            {
-                return false;
-            }
+            if (!Input.GetMouseButtonDown(0)) return false;
 
             var ray = _camera.ScreenPointToRay(Input.mousePosition);
-            if (!_collider.Raycast(ray, out var hitInfo, MAX_RAY_DISTANCE))
+            if (!Physics.Raycast(ray, out var hitInfo, MAX_RAY_DISTANCE, _layerMask, QueryTriggerInteraction.Ignore))
             {
                 return false;
             }
 
-            worldPosition = hitInfo.point;
-            gridPosition = _coordinateConverter.WorldToGrid(worldPosition);
+            if (_combatUnitColliders.TryGetValue(hitInfo.collider, out combatUnit))
+            {
+                return true;
+            }
 
+            if (hitInfo.collider != _boardCollider)
+            {
+                return false;
+            }
+
+            gridPosition = _coordinateConverter.WorldToGrid(hitInfo.point);
             return true;
         }
     }

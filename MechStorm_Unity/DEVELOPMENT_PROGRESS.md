@@ -3,8 +3,8 @@
 ## 当前阶段
 
 - 当前里程碑：P1 / Sprint 2
-- 当前任务：Task 2.5 最小战斗输入
-- 当前状态：待 Play Mode 验证
+- 当前任务：Task 2.6 战斗结果通知
+- 当前状态：待开始
 - 最后更新：2026-07-13
 
 ## 状态约定
@@ -151,10 +151,10 @@
   - 验证方式：Battle、Battle.Tests、Presentation、GameLogic 与 Editor 编译通过；EditMode 测试覆盖相邻攻击、非相邻失败、致死、空目标、未注册目标、同阵营目标、死亡目标和 TeamB 反向攻击；Unity Play Mode 血条刷新、失败日志和死亡日志已由开发者手动验证通过
   - 备注：`BattleSession` 负责成员、阵营和死亡目标校验，`AttackResolver` 保持距离与伤害结算职责；临时 Inspector 增加当前单位攻击对方的验证入口，攻击成功后按目标单位刷新血条。正式点击敌方单位选择目标仍属于 Task 2.5，结构化攻击结果仍属于 Task 2.6
 
-- [~] Task 2.5 最小战斗输入
-  - 状态：功能实现完成，待 Play Mode 验证
+- [x] Task 2.5 最小战斗输入
+  - 状态：已完成
   - 完成标准：支持点击当前单位、点击格子移动、点击敌方单位普通攻击，以及最小结束回合入口
-  - 验证方式：Presentation、GameLogic、Editor 与 Battle.Tests 编译通过；待 Unity Play Mode 手动验证“选单位 → 移动 / 攻击 → 回合推进”的最小闭环
+  - 验证方式：Presentation、GameLogic、Editor 与 Battle.Tests 编译通过；开发者已在 Unity Play Mode 手动验证未选择拒绝、当前单位选择、格子移动、相邻攻击、非法攻击、血条刷新、行动结束和阵营切换后的重新选择，结果均正常
   - 备注：已将输入检测改为 Camera 生成射线并通过单次 `Physics.Raycast` 区分单位 Collider 与棋盘 Collider；表现控制器维护当前选择，未选择时拒绝移动和攻击，移动成功后刷新单位位置，攻击成功后刷新目标血条，行动结束后清空选择。Collider 到 `CombatUnit`、`CombatUnit` 到 `CombatUnitVisual` 的映射只存在于表现层；`BattleInputAction` 仅描述本地输入处理结果，不替代 Task 2.6 的结构化战斗结果。先不做技能栏、部署拖拽、移动范围高亮和正式 TEngine `BattleMainUI`
 
 - [ ] Task 2.6 战斗结果通知
@@ -225,6 +225,6 @@
 
 ## 下一步
 
-1. 在 Unity Play Mode 验证未选择拒绝、当前单位选择、格子移动、相邻攻击、非法攻击和行动结束后的重新选择。
-2. 验证 `_battleInputLayerMask` 只允许棋盘和战斗单位参与点击，调试标记不拦截射线。
-3. 验证通过后将 Task 2.5 标记完成，再开始 Task 2.6 战斗结果通知。
+1. 开始 Task 2.6：明确移动、攻击、扣血、死亡和回合推进需要返回给表现层的最小结果字段。
+2. 将表现层当前通过布尔值、异常和直接读取逻辑对象进行同步的入口逐步替换为纯 C# 结果对象或本地通知。
+3. 补齐结果内容的 EditMode 测试，并保持 TEngine `GameEvent`、完整命令系统和回放日志后置。

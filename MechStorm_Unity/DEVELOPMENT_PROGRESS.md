@@ -3,9 +3,9 @@
 ## 当前阶段
 
 - 当前里程碑：P1 / Sprint 2
-- 当前任务：Task 2.6 战斗结果通知
+- 当前任务：Task 2.7 轻量战斗快照与调试导出
 - 当前状态：待开始
-- 最后更新：2026-07-13
+- 最后更新：2026-07-15
 
 ## 状态约定
 
@@ -157,11 +157,11 @@
   - 验证方式：Presentation、GameLogic、Editor 与 Battle.Tests 编译通过；开发者已在 Unity Play Mode 手动验证未选择拒绝、当前单位选择、格子移动、相邻攻击、非法攻击、血条刷新、行动结束和阵营切换后的重新选择，结果均正常
   - 备注：已将输入检测改为 Camera 生成射线并通过单次 `Physics.Raycast` 区分单位 Collider 与棋盘 Collider；表现控制器维护当前选择，未选择时拒绝移动和攻击，移动成功后刷新单位位置，攻击成功后刷新目标血条，行动结束后清空选择。Collider 到 `CombatUnit`、`CombatUnit` 到 `CombatUnitVisual` 的映射只存在于表现层；`BattleInputAction` 仅描述本地输入处理结果，不替代 Task 2.6 的结构化战斗结果。先不做技能栏、部署拖拽、移动范围高亮和正式 TEngine `BattleMainUI`
 
-- [ ] Task 2.6 战斗结果通知
-  - 状态：未开始
+- [x] Task 2.6 战斗结果通知
+  - 状态：已完成
   - 完成标准：移动、攻击、扣血、死亡、回合开始 / 结束等行为能以结果对象或本地事件形式返回给表现层
-  - 验证方式：EditMode 测试覆盖结果内容；表现层根据结果刷新单位位置、血条和日志
-  - 备注：P1 先使用纯 C# 结果对象或本地事件；不急着接 TEngine `GameEvent`
+  - 验证方式：Battle、Battle.Tests、Presentation、GameLogic 与 Editor 编译通过；EditMode 单元测试全部通过；Unity Play Mode 已由开发者手动验证移动、攻击、扣血、死亡和回合推进结果均正常
+  - 备注：已引入纯 C# `BattleActionResult`、`BattleActionType`、`BattleActionFailureReason` 与 `BattleActionChangeType`；移动、攻击和结束行动统一返回结构化结果，表现层按结果刷新位置、血条和日志。正常玩法拒绝使用失败结果，非法调用仍使用异常；暂不接 TEngine `GameEvent`
 
 - [ ] Task 2.7 轻量战斗快照与调试导出
   - 状态：未开始
@@ -172,7 +172,7 @@
 - [ ] Sprint 3：空间、攻击范围与技能雏形
   - 状态：未开始
   - 总目标：在普通移动 / 普通攻击稳定后，再引入攻击范围、武器范围、地形 / 占格规则与最小主动技能
-  - 备注：技能可以比 Buff 早引入；Buff / Modifier / Trigger 不在 Sprint 3 初期展开
+  - 备注：技能可以比 Buff 早引入；Buff / Modifier / Trigger 不在 Sprint 3 初期展开。若技能、多目标或复杂伤害使 `BattleActionResult` 出现大量互斥可空字段，再将具体结果拆为移动、耐久、死亡和回合等有数据的变化对象，由 Result 只保留公共信息与有序变化列表。仅当移动、攻击或伤害流程出现参数过多、多个步骤共享并修改中间数据时，才引入最小 `MoveContext`、`AttackContext` 或 `DamageContext`；否则继续使用参数和局部变量，并将正式 Context 体系留到 P2
 
 ## P2 / Sprint 4~5：工程化与解耦
 
@@ -225,6 +225,6 @@
 
 ## 下一步
 
-1. 开始 Task 2.6：明确移动、攻击、扣血、死亡和回合推进需要返回给表现层的最小结果字段。
-2. 将表现层当前通过布尔值、异常和直接读取逻辑对象进行同步的入口逐步替换为纯 C# 结果对象或本地通知。
-3. 补齐结果内容的 EditMode 测试，并保持 TEngine `GameEvent`、完整命令系统和回放日志后置。
+1. 开始 Task 2.7：明确 `BattleSnapshot` 与 `BattleActionLog` 的最小字段和纯 Battle 导出边界。
+2. 使用 `BattleActionResult.Sequence` 与客观阵营、单位数据记录移动、攻击和回合推进的关键日志。
+3. 补齐快照与日志的 EditMode 测试和 JSON 调试导出，保持完整录像、悔棋和正式回放 UI 后置。

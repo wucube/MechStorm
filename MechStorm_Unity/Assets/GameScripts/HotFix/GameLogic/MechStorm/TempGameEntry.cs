@@ -258,6 +258,7 @@ namespace MechStorm.Presentation
             }
 
             var inputAction = _presentationController.Tick(out var actionUnit);
+            var actionResult = _presentationController.LastActionResult;
             switch (inputAction)
             {
                 case BattleInputAction.CurrentUnitSelected:
@@ -267,19 +268,19 @@ namespace MechStorm.Presentation
                     break;
                 case BattleInputAction.CurrentUnitMoved:
                     Log.Info(
-                        $"[MechStorm] {actionUnit.Pilot.Name} moved to " +
-                        $"GridPosition: {actionUnit.Position}");
+                        $"[MechStorm] {actionResult.ActorUnit.Pilot.Name} moved to " +
+                        $"GridPosition: {actionResult.PositionAfter.Value}");
                     break;
                 case BattleInputAction.TargetAttacked:
-                    RefreshHealthBar(actionUnit);
+                    RefreshHealthBar(actionResult.TargetUnit);
                     Log.Info(
-                        $"[MechStorm] {actionUnit.Pilot.Name} was attacked, " +
-                        $"HP={actionUnit.MechRuntime.CurrentDurability}/" +
-                        $"{actionUnit.Mech.MaxDurability}");
-                    if (actionUnit.IsDead())
+                        $"[MechStorm] {actionResult.ActorUnit.Pilot.Name} attacked " +
+                        $"{actionResult.TargetUnit.Pilot.Name}, " +
+                        $"HP={actionResult.DurabilityBefore}->{actionResult.DurabilityAfter}/" +
+                        $"{actionResult.TargetUnit.Mech.MaxDurability}");
+                    if (actionResult.DurabilityAfter <= 0)
                     {
-                        Log.Info(
-                            $"[MechStorm] {actionUnit.Pilot.Name} was destroyed.");
+                        Log.Info($"[MechStorm] {actionResult.TargetUnit.Pilot.Name} was destroyed.");
                     }
                     break;
                 case BattleInputAction.ActionRejected:
@@ -356,7 +357,6 @@ namespace MechStorm.Presentation
                 return;
             }
 
-            var attackerUnit = _battleSession.CurrentCombatUnit;
             var targetUnit = GetDebugAttackTarget();
             if (targetUnit == null)
             {
@@ -366,33 +366,23 @@ namespace MechStorm.Presentation
                 return;
             }
 
-            var durabilityBefore = targetUnit.MechRuntime.CurrentDurability;
-            try
+            var result = _battleSession.AttackTargetCombatUnit(targetUnit);
+            if (!result.IsSuccess)
             {
-                _battleSession.AttackTargetCombatUnit(targetUnit);
-            }
-            catch (System.ArgumentException exception)
-            {
-                Log.Warning($"[MechStorm] Debug attack rejected: {exception.Message}");
-                return;
-            }
-            catch (System.InvalidOperationException exception)
-            {
-                Log.Warning($"[MechStorm] Debug attack rejected: {exception.Message}");
+                Log.Warning($"[MechStorm] Debug attack rejected: {result.FailureReason}");
                 return;
             }
 
-            RefreshHealthBar(targetUnit);
-            var durabilityAfter = targetUnit.MechRuntime.CurrentDurability;
+            RefreshHealthBar(result.TargetUnit);
             Log.Info(
-                $"[MechStorm] {attackerUnit.Pilot.Name} attacked " +
-                $"{targetUnit.Pilot.Name}, " +
-                $"HP={durabilityBefore}->{durabilityAfter}/" +
-                $"{targetUnit.Mech.MaxDurability}");
+                $"[MechStorm] {result.ActorUnit.Pilot.Name} attacked " +
+                $"{result.TargetUnit.Pilot.Name}, " +
+                $"HP={result.DurabilityBefore}->{result.DurabilityAfter}/" +
+                $"{result.TargetUnit.Mech.MaxDurability}");
 
-            if (targetUnit.IsDead())
+            if (result.DurabilityAfter <= 0)
             {
-                Log.Info($"[MechStorm] {targetUnit.Pilot.Name} was destroyed.");
+                Log.Info($"[MechStorm] {result.TargetUnit.Pilot.Name} was destroyed.");
             }
         }
 
@@ -405,8 +395,14 @@ namespace MechStorm.Presentation
             }
 
             LogCurrentBattleState("Before End Action");
-            _battleSession.EndCurrentUnitAction();
-            _presentationController?.ClearSelection();
+            var result = _presentationController != null
+                ? _presentationController.EndCurrentUnitAction()
+                : _battleSession.EndCurrentUnitAction();
+            Log.Info(
+                $"[MechStorm] {result.ActorUnit.Pilot.Name} ended action, " +
+                $"Next={result.NextCombatUnit.Pilot.Name}, " +
+                $"Round={result.RoundNumberBefore}->{result.RoundNumberAfter}, " +
+                $"Faction={result.FactionBefore}->{result.FactionAfter}");
             LogCurrentBattleState("After End Action");
         }
 

@@ -12,29 +12,17 @@ namespace MechStorm.Battle.Combat
         private readonly CombatUnitRegistry _unitRegistry;
         private readonly TurnCoordinator _turnCoordinator;
 
-        public BattleSession(
-            int boardWidth,
-            int boardHeight,
-            IEnumerable<CombatUnit> teamAUnits,
-            IEnumerable<CombatUnit> teamBUnits,
-            IEnumerable<CombatUnit> neutralUnits = null)
+        private int _actionSequence;
+
+        public BattleSession(int boardWidth, int boardHeight, IEnumerable<CombatUnit> teamAUnits, IEnumerable<CombatUnit> teamBUnits, IEnumerable<CombatUnit> neutralUnits = null)
         {
             _squareGrid = new SquareGrid(boardWidth, boardHeight);
             _movementResolver = new MovementResolver(_squareGrid);
             _attackResolver = new AttackResolver(_squareGrid);
-            _unitRegistry = new CombatUnitRegistry(
-                teamAUnits,
-                teamBUnits,
-                neutralUnits);
-            ValidateUnitPositions(
-                _unitRegistry.GetFactionUnits(CombatFaction.TeamA),
-                nameof(teamAUnits));
-            ValidateUnitPositions(
-                _unitRegistry.GetFactionUnits(CombatFaction.TeamB),
-                nameof(teamBUnits));
-            ValidateUnitPositions(
-                _unitRegistry.GetFactionUnits(CombatFaction.Neutral),
-                nameof(neutralUnits));
+            _unitRegistry = new CombatUnitRegistry(teamAUnits, teamBUnits, neutralUnits);
+            ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.TeamA), nameof(teamAUnits));
+            ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.TeamB), nameof(teamBUnits));
+            ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.Neutral), nameof(neutralUnits));
             _turnCoordinator = new TurnCoordinator(_unitRegistry);
         }
 
@@ -48,12 +36,18 @@ namespace MechStorm.Battle.Combat
 
         public CombatUnit CurrentCombatUnit => _turnCoordinator.CurrentCombatUnit;
 
-        public bool TryMoveCurrentCombatUnit(Vector2Int target)
+        public BattleActionResult TryMoveCurrentCombatUnit(Vector2Int target)
         {
-            return _movementResolver.TryMoveTo(CurrentCombatUnit, target);
+            var actorUnit = CurrentCombatUnit;
+            var positionBefore = actorUnit.Position;
+            var sequence = ++_actionSequence;
+
+            return !_movementResolver.TryMoveTo(actorUnit, target)
+                ? BattleActionResult.Failed(sequence, BattleActionType.Move, actorUnit, BattleActionFailureReason.InvalidMoveTarget)
+                : BattleActionResult.MoveSucceeded(sequence, actorUnit, positionBefore, actorUnit.Position);
         }
 
-        public void AttackTargetCombatUnit(CombatUnit targetUnit)
+        public BattleActionResult AttackTargetCombatUnit(CombatUnit targetUnit)
         {
             if (targetUnit == null)
             {
@@ -66,22 +60,41 @@ namespace MechStorm.Battle.Combat
             }
 
             var attackerUnit = CurrentCombatUnit;
+            var sequence = ++_actionSequence;
             if (_unitRegistry.GetFaction(attackerUnit) == _unitRegistry.GetFaction(targetUnit))
             {
-                throw new InvalidOperationException("Cannot attack a unit from the same faction.");
+                return BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit, BattleActionFailureReason.SameFactionTarget);
             }
 
             if (targetUnit.IsDead())
             {
-                throw new InvalidOperationException("Cannot attack a dead unit.");
+                return BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit, BattleActionFailureReason.TargetAlreadyDead);
             }
 
-            _attackResolver.Attack(attackerUnit, targetUnit);
+            var durabilityBefore = targetUnit.MechRuntime.CurrentDurability;
+            try
+            {
+                _attackResolver.Attack(attackerUnit, targetUnit);
+            }
+            catch (InvalidOperationException)
+            {
+                return BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit, BattleActionFailureReason.TargetNotAdjacent);
+            }
+
+            return BattleActionResult.AttackSucceeded(sequence, attackerUnit, targetUnit, durabilityBefore, targetUnit.MechRuntime.CurrentDurability);
         }
 
-        public void EndCurrentUnitAction()
+        public BattleActionResult EndCurrentUnitAction()
         {
+            var actorUnit = CurrentCombatUnit;
+            var roundNumberBefore = CurrentRoundNumber;
+            var factionBefore = CurrentFaction;
+            var sequence = ++_actionSequence;
+
             _turnCoordinator.EndCurrentUnitAction();
+
+            return BattleActionResult.ActionEnded(sequence, actorUnit, CurrentCombatUnit, roundNumberBefore,
+                CurrentRoundNumber, factionBefore, CurrentFaction);
         }
 
         public IReadOnlyList<CombatUnit> GetCurrentFactionCombatUnits()
@@ -114,17 +127,13 @@ namespace MechStorm.Battle.Combat
             return _unitRegistry.AreFactionUnitsDead(faction);
         }
 
-        private void ValidateUnitPositions(
-            IReadOnlyList<CombatUnit> units,
-            string parameterName)
+        private void ValidateUnitPositions(IReadOnlyList<CombatUnit> units, string parameterName)
         {
             foreach (var unit in units)
             {
                 if (!_squareGrid.IsInside(unit.Position))
                 {
-                    throw new ArgumentOutOfRangeException(
-                        parameterName,
-                        unit.Position,
+                    throw new ArgumentOutOfRangeException(parameterName, unit.Position,
                         "Combat unit position must be inside the battle grid.");
                 }
             }

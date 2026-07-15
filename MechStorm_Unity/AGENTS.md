@@ -64,6 +64,12 @@
 - Luban 配置：`.claude/skills/tengine-dev/references/luban-config.md`
 - 命名规则 / 禁止模式：`.claude/skills/tengine-dev/references/naming-rules.md`
 
+## C# 参数排版
+
+- 方法、构造函数及调用参数默认尽量在同一行书写，不因参数数量机械换行。
+- 只有整行明显过宽、影响阅读时才换行。
+- 换行后按语义将多个相关参数放在同一行，不采用一个参数独占一行的排版。
+
 ## Skill 使用边界
 
 - 默认只使用项目自身提供的 Skill，包括项目 `.factory/skills/`、`.claude/skills/` 中定义或由项目动态发现的 Skill。

@@ -20,38 +20,29 @@ namespace MechStorm.Battle.Combat
             get
             {
                 var currentFactionUnits = GetCurrentFactionUnits();
-                if (_currentFactionUnitIndex == InvalidFactionUnitIndex ||
-                    _currentFactionUnitIndex >= currentFactionUnits.Count)
+                if (_currentFactionUnitIndex == InvalidFactionUnitIndex || _currentFactionUnitIndex >= currentFactionUnits.Count)
                 {
-                    throw new InvalidOperationException(
-                        "Current faction has no alive combat unit.");
+                    throw new InvalidOperationException("Current faction has no alive combat unit.");
                 }
 
                 var currentCombatUnit = currentFactionUnits[_currentFactionUnitIndex];
                 if (currentCombatUnit.IsDead())
                 {
-                    throw new InvalidOperationException(
-                        "Dead combat unit cannot act.");
+                    throw new InvalidOperationException("Dead combat unit cannot act.");
                 }
-
                 return currentCombatUnit;
             }
         }
 
         public TurnCoordinator(CombatUnitRegistry unitRegistry)
         {
-            _unitRegistry = unitRegistry
-                ?? throw new ArgumentNullException(nameof(unitRegistry));
-            _currentFactionUnitIndex = FindNextAliveUnitIndex(
-                GetCurrentFactionUnits(),
-                InvalidFactionUnitIndex);
+            _unitRegistry = unitRegistry ?? throw new ArgumentNullException(nameof(unitRegistry));
+            _currentFactionUnitIndex = FindNextAliveUnitIndex(GetCurrentFactionUnits(), InvalidFactionUnitIndex);
         }
 
         public void EndCurrentUnitAction()
         {
-            var nextActionUnitIndex = FindNextAliveUnitIndex(
-                GetCurrentFactionUnits(),
-                _currentFactionUnitIndex);
+            var nextActionUnitIndex = FindNextAliveUnitIndex(GetCurrentFactionUnits(), _currentFactionUnitIndex);
             if (nextActionUnitIndex != InvalidFactionUnitIndex)
             {
                 _currentFactionUnitIndex = nextActionUnitIndex;
@@ -59,9 +50,7 @@ namespace MechStorm.Battle.Combat
             }
 
             AdvanceFaction();
-            _currentFactionUnitIndex = FindNextAliveUnitIndex(
-                GetCurrentFactionUnits(),
-                InvalidFactionUnitIndex);
+            _currentFactionUnitIndex = FindNextAliveUnitIndex(GetCurrentFactionUnits(), InvalidFactionUnitIndex);
         }
 
         private IReadOnlyList<CombatUnit> GetCurrentFactionUnits()
@@ -81,9 +70,7 @@ namespace MechStorm.Battle.Combat
             CurrentRoundNumber++;
         }
 
-        private static int FindNextAliveUnitIndex(
-            IReadOnlyList<CombatUnit> units,
-            int currentUnitIndex)
+        private static int FindNextAliveUnitIndex(IReadOnlyList<CombatUnit> units, int currentUnitIndex)
         {
             for (var i = currentUnitIndex + 1; i < units.Count; i++)
             {

@@ -25,8 +25,9 @@ namespace MechStorm.Presentation
 
         public string LastRejectionReason { get; private set; }
 
-        public BattlePresentationController(BattleSession battleSession,
-            IReadOnlyDictionary<CombatUnit, CombatUnitVisual> combatUnitVisuals,
+        public BattleActionResult LastActionResult { get; private set; }
+
+        public BattlePresentationController(BattleSession battleSession, IReadOnlyDictionary<CombatUnit, CombatUnitVisual> combatUnitVisuals,
             BattleBoardInputter battleBoardInputter)
         {
             _battleSession = battleSession ?? throw new ArgumentNullException(nameof(battleSession));
@@ -38,6 +39,7 @@ namespace MechStorm.Presentation
         {
             actionUnit = null;
             LastRejectionReason = null;
+            LastActionResult = null;
 
             if (!_battleBoardInputter.Tick(out var clickedCombatUnit, out var targetGridPosition))
             {
@@ -65,6 +67,14 @@ namespace MechStorm.Presentation
             _selectedCombatUnit = null;
         }
 
+        public BattleActionResult EndCurrentUnitAction()
+        {
+            LastRejectionReason = null;
+            LastActionResult = _battleSession.EndCurrentUnitAction();
+            ClearSelection();
+            return LastActionResult;
+        }
+
         private BattleInputAction HandleCombatUnitClick(CombatUnit currentCombatUnit, CombatUnit clickedCombatUnit)
         {
             if (ReferenceEquals(currentCombatUnit, clickedCombatUnit))
@@ -78,21 +88,16 @@ namespace MechStorm.Presentation
                 LastRejectionReason = "Select the current combat unit before attacking.";
                 return BattleInputAction.ActionRejected;
             }
-            try
+
+            var attackResult = _battleSession.AttackTargetCombatUnit(clickedCombatUnit);
+            LastActionResult = attackResult;
+            if (!attackResult.IsSuccess)
             {
-                _battleSession.AttackTargetCombatUnit(clickedCombatUnit);
-                return BattleInputAction.TargetAttacked;
-            }
-            catch (ArgumentException exception)
-            {
-                LastRejectionReason = exception.Message;
+                LastRejectionReason = GetFailureReason(attackResult.FailureReason);
                 return BattleInputAction.ActionRejected;
             }
-            catch (InvalidOperationException exception)
-            {
-                LastRejectionReason = exception.Message;
-                return BattleInputAction.ActionRejected;
-            }
+
+            return BattleInputAction.TargetAttacked;
         }
 
         private BattleInputAction HandleGridClick(CombatUnit currentCombatUnit, Vector2Int targetGridPosition)
@@ -108,14 +113,29 @@ namespace MechStorm.Presentation
                 throw new InvalidOperationException("Current combat unit does not have a presentation visual.");
             }
 
-            if (!_battleSession.TryMoveCurrentCombatUnit(targetGridPosition))
+            var moveResult = _battleSession.TryMoveCurrentCombatUnit(targetGridPosition);
+            LastActionResult = moveResult;
+            if (!moveResult.IsSuccess)
             {
-                LastRejectionReason = "Current combat unit cannot move to the selected grid position.";
+                LastRejectionReason = GetFailureReason(moveResult.FailureReason);
                 return BattleInputAction.ActionRejected;
             }
 
-            currentUnitVisual.RefreshPosition(currentCombatUnit.Position);
+            currentUnitVisual.RefreshPosition(moveResult.PositionAfter.Value);
             return BattleInputAction.CurrentUnitMoved;
+        }
+
+        private static string GetFailureReason(BattleActionFailureReason failureReason)
+        {
+            return failureReason switch
+            {
+                BattleActionFailureReason.InvalidMoveTarget => "Current combat unit cannot move to the selected grid position.",
+                BattleActionFailureReason.TargetNotAdjacent => "Target combat unit must be adjacent.",
+                BattleActionFailureReason.SameFactionTarget => "Cannot attack a combat unit from the same faction.",
+                BattleActionFailureReason.TargetAlreadyDead => "Cannot attack a dead combat unit.",
+                BattleActionFailureReason.ActorCannotAct => "Current combat unit cannot act.",
+                _ => "Battle action was rejected.",
+            };
         }
     }
 }

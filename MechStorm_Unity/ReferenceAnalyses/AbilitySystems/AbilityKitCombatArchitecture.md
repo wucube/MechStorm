@@ -12,6 +12,8 @@
 
 本文只分析文章中的架构思想和对 MechStorm 的参考价值，不代表建议直接接入 AbilityKit。
 
+Buff 生命周期、实例身份、叠层刷新、Duration / Interval、来源快照、光环和恢复边界已拆为独立专题，见 [`ScalableBuffSystemArchitecture.md`](../BuffSystems/ScalableBuffSystemArchitecture.md)。本文继续负责 AbilityKit 整体职责、逻辑与表现、伤害、同步和回放边界，避免在两篇文档中重复维护完整 Buff 分析。
+
 ## A. 文章写了什么
 
 ### A.1 核心主题

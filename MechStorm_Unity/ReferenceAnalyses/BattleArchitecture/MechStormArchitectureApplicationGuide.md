@@ -4,8 +4,9 @@
 
 - GAS 简化系统参考：<https://github.com/LiGameAcademy/godot_ability_system>
 - 回合制战斗系统参考：<https://github.com/LiGameAcademy/godot4_turn_based_combat_system>
+- Buff / 持续状态专题：[`ScalableBuffSystemArchitecture.md`](../BuffSystems/ScalableBuffSystemArchitecture.md)
 
-两个参考实现恰好使用 Godot，但本文只提炼可迁移到 MechStorm 纯 C# 无头核心的架构职责和落地顺序，不以引擎类型组织结论。
+前两个参考实现恰好使用 Godot，Buff 专题来自 AbilityKit 作者对持续状态边界的进一步拆解。本文只提炼可迁移到 MechStorm 纯 C# 无头核心的架构职责和落地顺序，不以引擎类型或外部框架组织结论。
 
 当前 MechStorm 阶段：P1 / Sprint 2，任务入口是 `BattleController` / `BattleSession`，目标是多单位、移动、普通攻击、扣血、死亡、回合推进与表现同步。结论是：两个 Godot 项目都可以作为设计思路参考，但都不能直接照搬。MechStorm 的主线仍应保持无头核心、显式流程、整数化、结果对象、逐步数据驱动。
 
@@ -1039,3 +1040,157 @@ TargetPart
 AttackModeTags
 ModificationLog
 ```
+
+## G. Buff / 持续状态专题的补充指导
+
+详细分析见：[`ScalableBuffSystemArchitecture.md`](../BuffSystems/ScalableBuffSystemArchitecture.md)。
+
+### G.1 对当前 Task 2.6 / Task 2.7 的直接借鉴
+
+当前阶段不实现 Buff 系统，只吸收将来所有状态流程都会依赖的结果边界：
+
+```text
+BattleActionResult
+  Success
+  FailureReason
+  Sequence
+  ActorId
+  TargetId
+  Ordered ChangeTypes
+
+BattleSnapshot / BattleActionLog
+  只保存稳定 ID、整数数值和客观战斗事实
+  不保存 Unity 对象、Visual 引用或短生命周期 Context
+```
+
+这样做的价值是先稳定“请求为什么成功或失败”和“按什么顺序发生了什么”，而不是提前实现状态生命周期。
+
+当前明确不引入：
+
+- `BuffRuntime`。
+- `ContinuousManager`。
+- 通用叠层策略。
+- Modifier 和 Trigger。
+- 状态恢复 Provider。
+- 用全局事件总线驱动主流程。
+
+### G.2 P2 状态主干的最小边界
+
+当部位破坏、眩晕、DOT、护盾和警戒进入真实需求后，再建立：
+
+```text
+StateDefinition
+StateRuntime
+StateApplyRequest
+StateApplyResult
+StateRemoveReason
+StateService
+TurnBasedStateScheduler
+Source-aware TagContainer
+GameplayAttribute
+AttributeModifier
+StateChangeResult
+```
+
+必须保持：
+
+```text
+配置描述默认规则
+运行时保存本次事实
+Rule 决定阶段行为
+Result 驱动表现
+Snapshot 保存可恢复数据
+```
+
+状态实例不能只按名称匹配。至少要明确 `DefinitionId`、`TargetId`、`SourceId` 是否共同参与身份，否则多来源叠层、按来源撤销、光环离开和击杀归因都会不稳定。
+
+### G.3 回合制 Duration / Interval 规则
+
+AbilityKit 文章使用秒级时间，MechStorm 必须转换为强类型回合时序：
+
+```text
+Round.Start
+FactionTurn.Start
+UnitAction.Before
+Attack.Before
+Hit.Before
+Hit.After
+Attack.After
+UnitAction.End
+FactionTurn.End
+Round.End
+```
+
+`Duration` 表示状态在哪个时序点结束，`Interval` 表示状态在哪个时序点执行周期规则。二者必须独立定义，不能统一隐藏在 `Tick()` 中。
+
+例如“三回合中毒”至少要额外回答：
+
+```text
+施加当回合是否立即生效
+在哪一方回合开始或结束时扣除持续回合
+周期伤害发生在扣除前还是扣除后
+刷新 Duration 是否重置下一次 Interval
+多个来源共享还是独立计时
+```
+
+### G.4 来源感知的 Tag 与 Modifier
+
+MechStorm 的状态、装备、天赋、光环、地形和部位破坏都会提供 Tag 或 Modifier，因此所有投影必须按来源计数或保存来源句柄：
+
+```text
+AddTag(tag, sourceId)
+RemoveTag(tag, sourceId)
+
+AddModifier(modifier, sourceId)
+RemoveModifier(modifierId, sourceId)
+```
+
+禁止把 Tag 只实现为无来源的布尔集合后，再由调用方猜测是否可以删除。一个来源结束时只能撤销自己贡献的事实。
+
+### G.5 P3 复杂规则的进入条件
+
+只有出现真实验收需求后，才扩展：
+
+- 多来源叠层。
+- 刷新、延长、替换和拒绝策略。
+- 计次型护盾。
+- 驱散、免疫和互斥。
+- 光环 Enter / Leave。
+- Trigger 条件链。
+- 追击、反击、协力和元件联动。
+
+同时必须提供：
+
+```text
+稳定 RuntimeId / SourceId
+固定生命周期顺序
+结构化 StackDecision / RemoveReason
+Trigger 深度和次数上限
+可查询的状态来源与属性拆解
+Headless 回归样例
+```
+
+### G.6 恢复边界
+
+后续 Snapshot 导入状态数据，不等于战斗世界已经恢复可运行。恢复流程还要显式重建：
+
+- State 索引。
+- 回合调度。
+- Tag 来源。
+- Modifier 投影。
+- Trigger 订阅。
+- Owner / Source 关联。
+
+恢复过程默认不重放伤害、不重复触发 Apply 规则，也不自动播放历史 Cue。数据导入、行为重绑定和表现刷新应是三个明确阶段。
+
+### G.7 不照搬的部分
+
+下列设计不直接采用：
+
+1. 不把 Buff、技能、移动、投射物和区域全部塞入统一 `ContinuousManager`。
+2. 不让 Buff 自己依赖 `Update`、Unity Timer 或场景对象。
+3. 不用一张 Buff 表承担完整玩法脚本。
+4. 不依赖全局事件广播决定状态主流程顺序。
+5. 不为 PVP 预先引入客户端预测回滚式 Buff 恢复。
+
+MechStorm 只共享确定存在的生命周期语义，是否共享运行时容器要等真实复用和性能数据出现后再决定。

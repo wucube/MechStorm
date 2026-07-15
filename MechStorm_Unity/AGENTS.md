@@ -47,6 +47,7 @@
 - MechStorm 当前阶段的参考落地顺序：`ReferenceAnalyses/BattleArchitecture/MechStormArchitectureApplicationGuide.md`
 - Gameplay Ability System、属性、状态、效果、Tag：`ReferenceAnalyses/AbilitySystems/GameplayAbilitySystemArchitecture.md`
 - 复杂战斗系统职责拆分、逻辑与表现、回放边界：`ReferenceAnalyses/AbilitySystems/AbilityKitCombatArchitecture.md`
+- Buff 生命周期、实例身份、叠层刷新、驱散、光环、来源和状态恢复：`ReferenceAnalyses/BuffSystems/ScalableBuffSystemArchitecture.md`
 - C# 性能优化与 BenchmarkDotNet 工作流：`ReferenceAnalyses/Performance/BenchmarkDotNetAiOptimizationWorkflow.md`
 
 ## TEngine 规范路由

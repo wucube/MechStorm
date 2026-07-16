@@ -46,6 +46,15 @@ namespace MechStorm.Editor
                     }
                 }
 
+                if (GUILayout.Button("Export Battle Debug JSON"))
+                {
+                    foreach (var selectedTarget in targets)
+                    {
+                        ((TempGameEntry)selectedTarget)
+                            .ExportBattleDebugJsonForDebug();
+                    }
+                }
+
                 if (GUILayout.Button("End Current Unit Action"))
                 {
                     foreach (var selectedTarget in targets)

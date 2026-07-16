@@ -1,8 +1,14 @@
 using System;
 using System.Collections.Generic;
+using MechStorm.Battle.Actions;
 using MechStorm.Battle.Foundation;
+using MechStorm.Battle.Rules;
+using MechStorm.Battle.Snapshots;
+using MechStorm.Battle.Spatial;
+using MechStorm.Battle.Turns;
+using MechStorm.Battle.Units;
 
-namespace MechStorm.Battle.Combat
+namespace MechStorm.Battle
 {
     public sealed class BattleSession
     {
@@ -11,11 +17,15 @@ namespace MechStorm.Battle.Combat
         private readonly AttackResolver _attackResolver;
         private readonly CombatUnitRegistry _unitRegistry;
         private readonly TurnCoordinator _turnCoordinator;
+        private readonly List<BattleActionLog> _actionLogs;
+        private readonly IReadOnlyList<BattleActionLog> _readOnlyActionLogs;
 
         private int _actionSequence;
 
         public BattleSession(int boardWidth, int boardHeight, IEnumerable<CombatUnit> teamAUnits, IEnumerable<CombatUnit> teamBUnits, IEnumerable<CombatUnit> neutralUnits = null)
         {
+            _actionLogs = new List<BattleActionLog>();
+            _readOnlyActionLogs = _actionLogs.AsReadOnly();
             _squareGrid = new SquareGrid(boardWidth, boardHeight);
             _movementResolver = new MovementResolver(_squareGrid);
             _attackResolver = new AttackResolver(_squareGrid);
@@ -36,15 +46,31 @@ namespace MechStorm.Battle.Combat
 
         public CombatUnit CurrentCombatUnit => _turnCoordinator.CurrentCombatUnit;
 
+        public IReadOnlyList<BattleActionLog> ActionLogs => _readOnlyActionLogs;
+
+        public BattleSnapshot CreateSnapshot()
+        {
+            var unitSnapshots = new List<BattleUnitSnapshot>(CombatUnits.Count);
+            foreach (var unit in CombatUnits)
+            {
+                unitSnapshots.Add(new BattleUnitSnapshot(unit.UnitId, _unitRegistry.GetFaction(unit), unit.Position,
+                    unit.MechRuntime.CurrentDurability, unit.Mech.MaxDurability));
+            }
+
+            return new BattleSnapshot(Grid.Width, Grid.Height, CurrentRoundNumber, CurrentFaction,
+                CurrentCombatUnit.UnitId, unitSnapshots);
+        }
+
         public BattleActionResult TryMoveCurrentCombatUnit(Vector2Int target)
         {
             var actorUnit = CurrentCombatUnit;
             var positionBefore = actorUnit.Position;
             var sequence = ++_actionSequence;
 
-            return !_movementResolver.TryMoveTo(actorUnit, target)
+            var result = !_movementResolver.TryMoveTo(actorUnit, target)
                 ? BattleActionResult.Failed(sequence, BattleActionType.Move, actorUnit, BattleActionFailureReason.InvalidMoveTarget)
                 : BattleActionResult.MoveSucceeded(sequence, actorUnit, positionBefore, actorUnit.Position);
+            return RecordAction(result);
         }
 
         public BattleActionResult AttackTargetCombatUnit(CombatUnit targetUnit)
@@ -63,12 +89,16 @@ namespace MechStorm.Battle.Combat
             var sequence = ++_actionSequence;
             if (_unitRegistry.GetFaction(attackerUnit) == _unitRegistry.GetFaction(targetUnit))
             {
-                return BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit, BattleActionFailureReason.SameFactionTarget);
+                var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
+                    BattleActionFailureReason.SameFactionTarget);
+                return RecordAction(result, targetUnitId: targetUnit.UnitId);
             }
 
             if (targetUnit.IsDead())
             {
-                return BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit, BattleActionFailureReason.TargetAlreadyDead);
+                var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
+                    BattleActionFailureReason.TargetAlreadyDead);
+                return RecordAction(result, targetUnitId: targetUnit.UnitId);
             }
 
             var durabilityBefore = targetUnit.MechRuntime.CurrentDurability;
@@ -78,10 +108,14 @@ namespace MechStorm.Battle.Combat
             }
             catch (InvalidOperationException)
             {
-                return BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit, BattleActionFailureReason.TargetNotAdjacent);
+                var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
+                    BattleActionFailureReason.TargetNotAdjacent);
+                return RecordAction(result, targetUnitId: targetUnit.UnitId);
             }
 
-            return BattleActionResult.AttackSucceeded(sequence, attackerUnit, targetUnit, durabilityBefore, targetUnit.MechRuntime.CurrentDurability);
+            var successResult = BattleActionResult.AttackSucceeded(sequence, attackerUnit, targetUnit,
+                durabilityBefore, targetUnit.MechRuntime.CurrentDurability);
+            return RecordAction(successResult, targetUnitId: targetUnit.UnitId);
         }
 
         public BattleActionResult EndCurrentUnitAction()
@@ -93,8 +127,9 @@ namespace MechStorm.Battle.Combat
 
             _turnCoordinator.EndCurrentUnitAction();
 
-            return BattleActionResult.ActionEnded(sequence, actorUnit, CurrentCombatUnit, roundNumberBefore,
+            var result = BattleActionResult.ActionEnded(sequence, actorUnit, CurrentCombatUnit, roundNumberBefore,
                 CurrentRoundNumber, factionBefore, CurrentFaction);
+            return RecordAction(result, nextUnitId: CurrentCombatUnit.UnitId);
         }
 
         public IReadOnlyList<CombatUnit> GetCurrentFactionCombatUnits()
@@ -125,6 +160,12 @@ namespace MechStorm.Battle.Combat
         public bool AreFactionUnitsDead(CombatFaction faction)
         {
             return _unitRegistry.AreFactionUnitsDead(faction);
+        }
+
+        private BattleActionResult RecordAction(BattleActionResult result, int? targetUnitId = null, int? nextUnitId = null)
+        {
+            _actionLogs.Add(new BattleActionLog(result, result.ActorUnit.UnitId, targetUnitId, nextUnitId));
+            return result;
         }
 
         private void ValidateUnitPositions(IReadOnlyList<CombatUnit> units, string parameterName)

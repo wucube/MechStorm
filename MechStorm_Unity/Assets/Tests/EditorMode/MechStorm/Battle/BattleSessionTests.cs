@@ -1,0 +1,507 @@
+using System;
+using System.Collections.Generic;
+using MechStorm.Battle;
+using MechStorm.Battle.Actions;
+using MechStorm.Battle.Foundation;
+using MechStorm.Battle.Units;
+using NUnit.Framework;
+
+namespace MechStorm.Battle.Tests
+{
+    public class BattleSessionTests
+    {
+        [Test]
+        public void Constructor_InitializesBattleStateAndUnits()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(3, 1));
+
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            Assert.AreEqual(5, session.Grid.Width);
+            Assert.AreEqual(5, session.Grid.Height);
+            Assert.AreEqual(2, session.CombatUnits.Count);
+            Assert.AreSame(playerUnit, session.CurrentCombatUnit);
+            Assert.AreEqual(CombatFaction.TeamA, session.CurrentFaction);
+            Assert.AreEqual(1, session.CurrentRoundNumber);
+        }
+
+        [Test]
+        public void CreateSnapshot_CapturesCurrentStateWithoutChangingPreviousSnapshot()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), attack: 25, moveRange: 3);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(3, 1), durability: 80);
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            var initialSnapshot = session.CreateSnapshot();
+            session.TryMoveCurrentCombatUnit(new Vector2Int(2, 1));
+            session.AttackTargetCombatUnit(enemyUnit);
+            var updatedSnapshot = session.CreateSnapshot();
+
+            Assert.AreEqual(5, initialSnapshot.BoardWidth);
+            Assert.AreEqual(5, initialSnapshot.BoardHeight);
+            Assert.AreEqual(1, initialSnapshot.RoundNumber);
+            Assert.AreEqual(CombatFaction.TeamA, initialSnapshot.CurrentFaction);
+            Assert.AreEqual(1, initialSnapshot.CurrentUnitId);
+            Assert.AreEqual(new Vector2Int(1, 1), initialSnapshot.Units[0].Position);
+            Assert.AreEqual(80, initialSnapshot.Units[1].CurrentDurability);
+
+            Assert.AreEqual(new Vector2Int(2, 1), updatedSnapshot.Units[0].Position);
+            Assert.AreEqual(55, updatedSnapshot.Units[1].CurrentDurability);
+            Assert.AreEqual(1, updatedSnapshot.Units[0].UnitId);
+            Assert.AreEqual(CombatFaction.TeamB, updatedSnapshot.Units[1].Faction);
+        }
+
+        [Test]
+        public void Constructor_WithEmptyUnitList_Throws()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(3, 1));
+
+            Assert.Throws<ArgumentException>(() =>
+                CreateBattleSession(Array.Empty<CombatUnit>(), new[] { enemyUnit }));
+            Assert.Throws<ArgumentException>(() =>
+                CreateBattleSession(new[] { playerUnit }, Array.Empty<CombatUnit>()));
+        }
+
+        [Test]
+        public void Constructor_WithUnitOutsideGrid_Throws()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(-1, 1));
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(3, 1));
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                CreateBattleSession(playerUnit, enemyUnit));
+        }
+
+        [Test]
+        public void Constructor_WithDuplicateUnit_Throws()
+        {
+            var sharedUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+
+            Assert.Throws<ArgumentException>(() =>
+                CreateBattleSession(sharedUnit, sharedUnit));
+        }
+
+        [Test]
+        public void Constructor_WithDuplicateUnitId_Throws()
+        {
+            var teamAUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var teamBUnit = CreateCombatUnit(1, new Vector2Int(3, 1));
+
+            Assert.Throws<ArgumentException>(() =>
+                CreateBattleSession(teamAUnit, teamBUnit));
+        }
+
+        [Test]
+        public void TryMoveCurrentCombatUnit_WithReachableTarget_MovesPlayerUnit()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), moveRange: 3);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(4, 4));
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+            var target = new Vector2Int(2, 2);
+
+            var result = session.TryMoveCurrentCombatUnit(target);
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(1, result.Sequence);
+            Assert.AreEqual(BattleActionType.Move, result.ActionType);
+            Assert.AreSame(playerUnit, result.ActorUnit);
+            Assert.AreEqual(new Vector2Int(1, 1), result.PositionBefore);
+            Assert.AreEqual(target, result.PositionAfter);
+            CollectionAssert.AreEqual(new[] { BattleActionChangeType.UnitMoved }, result.ChangeTypes);
+            Assert.AreEqual(target, playerUnit.Position);
+        }
+
+        [Test]
+        public void TryMoveCurrentCombatUnit_WithUnreachableTarget_ReturnsFailedResult()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), moveRange: 1);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(4, 4));
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            var result = session.TryMoveCurrentCombatUnit(new Vector2Int(3, 1));
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(BattleActionFailureReason.InvalidMoveTarget, result.FailureReason);
+            Assert.AreSame(playerUnit, result.ActorUnit);
+            Assert.IsEmpty(result.ChangeTypes);
+            Assert.AreEqual(new Vector2Int(1, 1), playerUnit.Position);
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithAdjacentTarget_AppliesDamage()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), attack: 25);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(2, 1), durability: 80);
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            var result = session.AttackTargetCombatUnit(enemyUnit);
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(BattleActionType.Attack, result.ActionType);
+            Assert.AreSame(playerUnit, result.ActorUnit);
+            Assert.AreSame(enemyUnit, result.TargetUnit);
+            Assert.AreEqual(80, result.DurabilityBefore);
+            Assert.AreEqual(55, result.DurabilityAfter);
+            CollectionAssert.AreEqual(new[] { BattleActionChangeType.DamageApplied }, result.ChangeTypes);
+            Assert.AreEqual(55, enemyUnit.MechRuntime.CurrentDurability);
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithNonAdjacentTarget_ReturnsFailedResultWithoutApplyingDamage()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), attack: 25);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(3, 1), durability: 80);
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            var result = session.AttackTargetCombatUnit(enemyUnit);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(BattleActionFailureReason.TargetNotAdjacent, result.FailureReason);
+            Assert.IsEmpty(result.ChangeTypes);
+            Assert.AreEqual(80, enemyUnit.MechRuntime.CurrentDurability);
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithLethalDamage_DestroysTarget()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), attack: 50);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(2, 1), durability: 30);
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            var result = session.AttackTargetCombatUnit(enemyUnit);
+
+            Assert.IsTrue(result.IsSuccess);
+            CollectionAssert.AreEqual(
+                new[] { BattleActionChangeType.DamageApplied, BattleActionChangeType.UnitDied },
+                result.ChangeTypes);
+            Assert.AreEqual(0, enemyUnit.MechRuntime.CurrentDurability);
+            Assert.IsTrue(enemyUnit.IsDead());
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithNullTarget_Throws()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(2, 1));
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            Assert.Throws<ArgumentNullException>(() =>
+                session.AttackTargetCombatUnit(null));
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithUnknownTarget_Throws()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(2, 1));
+            var unknownUnit = CreateCombatUnit(3, new Vector2Int(1, 2));
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            Assert.Throws<ArgumentException>(() =>
+                session.AttackTargetCombatUnit(unknownUnit));
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithSameFactionTarget_ReturnsFailedResultWithoutApplyingDamage()
+        {
+            var playerA = CreateCombatUnit(1, new Vector2Int(1, 1), attack: 25);
+            var playerB = CreateCombatUnit(2, new Vector2Int(2, 1), durability: 80);
+            var enemyUnit = CreateCombatUnit(3, new Vector2Int(4, 4));
+            var session = CreateBattleSession(
+                new[] { playerA, playerB },
+                new[] { enemyUnit });
+
+            var result = session.AttackTargetCombatUnit(playerB);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(BattleActionFailureReason.SameFactionTarget, result.FailureReason);
+            Assert.AreEqual(80, playerB.MechRuntime.CurrentDurability);
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WithDeadTarget_ReturnsFailedResult()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var deadEnemy = CreateCombatUnit(2, new Vector2Int(2, 1));
+            var aliveEnemy = CreateCombatUnit(3, new Vector2Int(3, 1));
+            deadEnemy.MechRuntime.TakeDamage(deadEnemy.Mech.MaxDurability);
+            var session = CreateBattleSession(
+                new[] { playerUnit },
+                new[] { deadEnemy, aliveEnemy });
+
+            var result = session.AttackTargetCombatUnit(deadEnemy);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(BattleActionFailureReason.TargetAlreadyDead, result.FailureReason);
+            Assert.AreEqual(0, deadEnemy.MechRuntime.CurrentDurability);
+        }
+
+        [Test]
+        public void AttackTargetCombatUnit_WhenTeamBActs_AppliesDamageToTeamA()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), durability: 80);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(2, 1), attack: 25);
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+            session.EndCurrentUnitAction();
+
+            var result = session.AttackTargetCombatUnit(playerUnit);
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(2, result.Sequence);
+            Assert.AreSame(enemyUnit, result.ActorUnit);
+            Assert.AreSame(enemyUnit, session.CurrentCombatUnit);
+            Assert.AreEqual(55, playerUnit.MechRuntime.CurrentDurability);
+        }
+
+        [Test]
+        public void EndCurrentUnitAction_AdvancesUnitsTurnsAndRounds()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(3, 1));
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            var firstResult = session.EndCurrentUnitAction();
+
+            Assert.IsTrue(firstResult.IsSuccess);
+            Assert.AreEqual(1, firstResult.Sequence);
+            Assert.AreSame(playerUnit, firstResult.ActorUnit);
+            Assert.AreSame(enemyUnit, firstResult.NextCombatUnit);
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    BattleActionChangeType.UnitActionEnded,
+                    BattleActionChangeType.FactionTurnEnded,
+                    BattleActionChangeType.FactionTurnStarted,
+                    BattleActionChangeType.CurrentUnitChanged
+                },
+                firstResult.ChangeTypes);
+            Assert.AreSame(enemyUnit, session.CurrentCombatUnit);
+            Assert.AreEqual(CombatFaction.TeamB, session.CurrentFaction);
+            Assert.AreEqual(1, session.CurrentRoundNumber);
+
+            var secondResult = session.EndCurrentUnitAction();
+
+            Assert.IsTrue(secondResult.IsSuccess);
+            Assert.AreEqual(2, secondResult.Sequence);
+            Assert.AreSame(enemyUnit, secondResult.ActorUnit);
+            Assert.AreSame(playerUnit, secondResult.NextCombatUnit);
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    BattleActionChangeType.UnitActionEnded,
+                    BattleActionChangeType.FactionTurnEnded,
+                    BattleActionChangeType.RoundStarted,
+                    BattleActionChangeType.FactionTurnStarted,
+                    BattleActionChangeType.CurrentUnitChanged
+                },
+                secondResult.ChangeTypes);
+            Assert.AreSame(playerUnit, session.CurrentCombatUnit);
+            Assert.AreEqual(CombatFaction.TeamA, session.CurrentFaction);
+            Assert.AreEqual(2, session.CurrentRoundNumber);
+        }
+
+        [Test]
+        public void ActionLogs_RecordSuccessfulAndFailedActionsInSequence()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1), moveRange: 1);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(4, 4));
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            session.TryMoveCurrentCombatUnit(new Vector2Int(3, 1));
+            session.TryMoveCurrentCombatUnit(new Vector2Int(2, 1));
+            session.AttackTargetCombatUnit(enemyUnit);
+            session.EndCurrentUnitAction();
+
+            Assert.AreEqual(4, session.ActionLogs.Count);
+
+            var failedMoveLog = session.ActionLogs[0];
+            Assert.AreEqual(1, failedMoveLog.Sequence);
+            Assert.AreEqual(BattleActionType.Move, failedMoveLog.ActionType);
+            Assert.IsFalse(failedMoveLog.IsSuccess);
+            Assert.AreEqual(BattleActionFailureReason.InvalidMoveTarget, failedMoveLog.FailureReason);
+            Assert.AreEqual(1, failedMoveLog.ActorUnitId);
+
+            var successfulMoveLog = session.ActionLogs[1];
+            Assert.AreEqual(2, successfulMoveLog.Sequence);
+            Assert.IsTrue(successfulMoveLog.IsSuccess);
+            Assert.AreEqual(new Vector2Int(1, 1), successfulMoveLog.PositionBefore);
+            Assert.AreEqual(new Vector2Int(2, 1), successfulMoveLog.PositionAfter);
+
+            var failedAttackLog = session.ActionLogs[2];
+            Assert.AreEqual(3, failedAttackLog.Sequence);
+            Assert.AreEqual(BattleActionType.Attack, failedAttackLog.ActionType);
+            Assert.AreEqual(BattleActionFailureReason.TargetNotAdjacent, failedAttackLog.FailureReason);
+            Assert.AreEqual(2, failedAttackLog.TargetUnitId);
+
+            var endActionLog = session.ActionLogs[3];
+            Assert.AreEqual(4, endActionLog.Sequence);
+            Assert.AreEqual(BattleActionType.EndUnitAction, endActionLog.ActionType);
+            Assert.AreEqual(1, endActionLog.ActorUnitId);
+            Assert.AreEqual(2, endActionLog.NextUnitId);
+            Assert.AreEqual(CombatFaction.TeamB, endActionLog.FactionAfter);
+        }
+
+        [Test]
+        public void GetCurrentFactionCombatUnits_ReturnsUnitsForCurrentFaction()
+        {
+            var playerA = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var playerB = CreateCombatUnit(2, new Vector2Int(1, 2));
+            var enemyUnit = CreateCombatUnit(3, new Vector2Int(3, 1));
+            var session = CreateBattleSession(
+                new[] { playerA, playerB },
+                new[] { enemyUnit });
+
+            var playerUnits = session.GetCurrentFactionCombatUnits();
+
+            CollectionAssert.AreEqual(new[] { playerA, playerB }, playerUnits);
+            CollectionAssert.AreEqual(
+                new[] { enemyUnit },
+                session.GetFactionCombatUnits(CombatFaction.TeamB));
+
+            session.EndCurrentUnitAction();
+            session.EndCurrentUnitAction();
+
+            CollectionAssert.AreEqual(
+                new[] { enemyUnit },
+                session.GetCurrentFactionCombatUnits());
+        }
+
+        [Test]
+        public void AliveAndDeadQueries_ReturnExpectedUnits()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(3, 1));
+            enemyUnit.MechRuntime.TakeDamage(enemyUnit.Mech.MaxDurability);
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            CollectionAssert.AreEqual(
+                new[] { playerUnit },
+                session.GetAllAliveCombatUnits());
+            CollectionAssert.AreEqual(
+                new[] { enemyUnit },
+                session.GetAllDeadCombatUnits());
+            Assert.IsFalse(session.AreFactionUnitsDead(CombatFaction.TeamA));
+            Assert.IsTrue(session.AreFactionUnitsDead(CombatFaction.TeamB));
+        }
+
+        [Test]
+        public void FactionQueries_IncludeNeutralUnits()
+        {
+            var teamAUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var teamBUnit = CreateCombatUnit(2, new Vector2Int(3, 1));
+            var neutralUnit = CreateCombatUnit(3, new Vector2Int(2, 3));
+            var session = new BattleSession(
+                5,
+                5,
+                new[] { teamAUnit },
+                new[] { teamBUnit },
+                new[] { neutralUnit });
+
+            Assert.AreEqual(3, session.CombatUnits.Count);
+            CollectionAssert.AreEqual(
+                new[] { neutralUnit },
+                session.GetFactionCombatUnits(CombatFaction.Neutral));
+            Assert.AreEqual(
+                CombatFaction.Neutral,
+                session.GetCombatUnitFaction(neutralUnit));
+            Assert.IsFalse(session.AreFactionUnitsDead(CombatFaction.Neutral));
+
+            neutralUnit.MechRuntime.TakeDamage(neutralUnit.Mech.MaxDurability);
+
+            Assert.IsTrue(session.AreFactionUnitsDead(CombatFaction.Neutral));
+        }
+
+        [Test]
+        public void CombatUnitRegistry_ProvidesFactionAndMembershipQueries()
+        {
+            var teamAUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var teamBUnit = CreateCombatUnit(2, new Vector2Int(3, 1));
+            var neutralUnit = CreateCombatUnit(3, new Vector2Int(2, 3));
+            var registry = new CombatUnitRegistry(
+                new[] { teamAUnit },
+                new[] { teamBUnit },
+                new[] { neutralUnit });
+
+            Assert.IsTrue(registry.Contains(teamAUnit));
+            Assert.AreEqual(
+                CombatFaction.TeamA,
+                registry.GetFaction(teamAUnit));
+            Assert.AreEqual(
+                CombatFaction.TeamB,
+                registry.GetFaction(teamBUnit));
+            Assert.AreEqual(
+                CombatFaction.Neutral,
+                registry.GetFaction(neutralUnit));
+            Assert.AreSame(teamBUnit, registry.GetCombatUnit(2));
+            Assert.Throws<ArgumentOutOfRangeException>(() => registry.GetCombatUnit(0));
+            Assert.Throws<KeyNotFoundException>(() => registry.GetCombatUnit(99));
+        }
+
+        [Test]
+        public void ConstructorAndTurnAdvance_SkipDeadUnits()
+        {
+            var deadPlayer = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var alivePlayer = CreateCombatUnit(2, new Vector2Int(1, 2));
+            var deadEnemy = CreateCombatUnit(3, new Vector2Int(3, 1));
+            var aliveEnemy = CreateCombatUnit(4, new Vector2Int(3, 2));
+            deadPlayer.MechRuntime.TakeDamage(deadPlayer.Mech.MaxDurability);
+            deadEnemy.MechRuntime.TakeDamage(deadEnemy.Mech.MaxDurability);
+            var session = CreateBattleSession(
+                new[] { deadPlayer, alivePlayer },
+                new[] { deadEnemy, aliveEnemy });
+
+            Assert.AreSame(alivePlayer, session.CurrentCombatUnit);
+
+            session.EndCurrentUnitAction();
+
+            Assert.AreEqual(CombatFaction.TeamB, session.CurrentFaction);
+            Assert.AreSame(aliveEnemy, session.CurrentCombatUnit);
+        }
+
+        [Test]
+        public void DeadCurrentCombatUnit_CannotMoveOrAttack()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(2, 1));
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+            playerUnit.MechRuntime.TakeDamage(playerUnit.Mech.MaxDurability);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                session.TryMoveCurrentCombatUnit(new Vector2Int(1, 2)));
+            Assert.Throws<InvalidOperationException>(() =>
+                session.AttackTargetCombatUnit(enemyUnit));
+        }
+
+        private static BattleSession CreateBattleSession(
+            CombatUnit playerUnit,
+            CombatUnit enemyUnit)
+        {
+            return CreateBattleSession(
+                new[] { playerUnit },
+                new[] { enemyUnit });
+        }
+
+        private static BattleSession CreateBattleSession(
+            CombatUnit[] playerUnits,
+            CombatUnit[] enemyUnits)
+        {
+            return new BattleSession(5, 5, playerUnits, enemyUnits);
+        }
+
+        private static CombatUnit CreateCombatUnit(
+            int id,
+            Vector2Int position,
+            int attack = 10,
+            int durability = 100,
+            int moveRange = 3)
+        {
+            var pilot = new PilotData(id, $"Pilot {id}", 10);
+            var mech = new MechData(id, $"Mech {id}", attack, durability, moveRange);
+            var factory = new CombatUnitFactory();
+
+            return factory.Create(id, pilot, mech, position);
+        }
+    }
+}

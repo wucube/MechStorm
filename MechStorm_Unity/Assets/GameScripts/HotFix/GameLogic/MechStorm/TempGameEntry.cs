@@ -1,5 +1,14 @@
+using System;
 using System.Collections.Generic;
-using MechStorm.Battle.Combat;
+using System.IO;
+using Cysharp.Threading.Tasks;
+using MechStorm.Battle;
+using MechStorm.Battle.Diagnostics;
+using MechStorm.Battle.Units;
+using MechStorm.Presentation.Board;
+using MechStorm.Presentation.Controllers;
+using MechStorm.Presentation.Input;
+using MechStorm.Presentation.Units;
 using TEngine;
 using UnityEngine;
 using Vector2Int = MechStorm.Battle.Foundation.Vector2Int;
@@ -8,6 +17,9 @@ namespace MechStorm.Presentation
 {
     public class TempGameEntry : MonoBehaviour
     {
+        private const int PlayerAUnitId = 1;
+        private const int EnemyAUnitId = 2;
+
         [SerializeField]
         private Transform _plane;
         [SerializeField]
@@ -146,7 +158,7 @@ namespace MechStorm.Presentation
             var pilot = new PilotData(1, "Player A", 3);
             var mech = new MechData(1, "Training Mech", 10, 100, 3);
 
-            _playerAUnit = factory.Create(pilot, mech, new Vector2Int(1, 1));
+            _playerAUnit = factory.Create(PlayerAUnitId, pilot, mech, new Vector2Int(1, 1));
         }
 
         private void CreatePlayerAVisual()
@@ -195,8 +207,7 @@ namespace MechStorm.Presentation
             var mech = new MechData(2, "Training Enemy Mech", 10, 100, 3);
 
             _enemyAUnit = factory.Create(
-                pilot,
-                mech,
+                EnemyAUnitId, pilot, mech,
                 new Vector2Int(_boardWidth - 1, _boardHeight - 1));
         }
 
@@ -415,6 +426,47 @@ namespace MechStorm.Presentation
             }
 
             LogCurrentBattleState("Current Battle State");
+        }
+
+        public void ExportBattleDebugJsonForDebug()
+        {
+            if (_battleSession == null)
+            {
+                Log.Error("[MechStorm] Cannot export battle JSON before BattleSession is ready.");
+                return;
+            }
+
+            ExportBattleDebugJsonAsync().Forget();
+        }
+
+        private async UniTask ExportBattleDebugJsonAsync()
+        {
+            try
+            {
+                var snapshot = _battleSession.CreateSnapshot();
+                var json = BattleDebugJsonSerializer.Serialize(snapshot, _battleSession.ActionLogs);
+                var directoryPath = GetBattleDebugDirectoryPath();
+                Directory.CreateDirectory(directoryPath);
+
+                var fileName = $"battle_{DateTime.Now:yyyyMMdd_HHmmss_fff}.json";
+                var filePath = Path.Combine(directoryPath, fileName);
+                await File.WriteAllTextAsync(filePath, json);
+
+                Log.Info($"[MechStorm] Battle debug JSON exported to: {filePath}");
+            }
+            catch (Exception exception)
+            {
+                Log.Error($"[MechStorm] Failed to export battle debug JSON: {exception}");
+            }
+        }
+
+        private static string GetBattleDebugDirectoryPath()
+        {
+#if UNITY_EDITOR
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "BattleDebug"));
+#else
+            return Path.Combine(Application.persistentDataPath, "BattleDebug");
+#endif
         }
 
         private CombatUnit GetDebugAttackTarget()

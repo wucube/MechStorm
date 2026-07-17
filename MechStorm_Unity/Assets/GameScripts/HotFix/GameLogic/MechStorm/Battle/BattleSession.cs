@@ -1,0 +1,183 @@
+using System;
+using System.Collections.Generic;
+using MechStorm.Battle.Actions;
+using MechStorm.Battle.Foundation;
+using MechStorm.Battle.Rules;
+using MechStorm.Battle.Snapshots;
+using MechStorm.Battle.Spatial;
+using MechStorm.Battle.Turns;
+using MechStorm.Battle.Units;
+
+namespace MechStorm.Battle
+{
+    public sealed class BattleSession
+    {
+        private readonly SquareGrid _squareGrid;
+        private readonly MovementResolver _movementResolver;
+        private readonly AttackResolver _attackResolver;
+        private readonly CombatUnitRegistry _unitRegistry;
+        private readonly TurnCoordinator _turnCoordinator;
+        private readonly List<BattleActionLog> _actionLogs;
+        private readonly IReadOnlyList<BattleActionLog> _readOnlyActionLogs;
+
+        private int _actionSequence;
+
+        public BattleSession(int boardWidth, int boardHeight, IEnumerable<CombatUnit> teamAUnits, IEnumerable<CombatUnit> teamBUnits, IEnumerable<CombatUnit> neutralUnits = null)
+        {
+            _actionLogs = new List<BattleActionLog>();
+            _readOnlyActionLogs = _actionLogs.AsReadOnly();
+            _squareGrid = new SquareGrid(boardWidth, boardHeight);
+            _movementResolver = new MovementResolver(_squareGrid);
+            _attackResolver = new AttackResolver(_squareGrid);
+            _unitRegistry = new CombatUnitRegistry(teamAUnits, teamBUnits, neutralUnits);
+            ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.TeamA), nameof(teamAUnits));
+            ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.TeamB), nameof(teamBUnits));
+            ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.Neutral), nameof(neutralUnits));
+            _turnCoordinator = new TurnCoordinator(_unitRegistry);
+        }
+
+        public SquareGrid Grid => _squareGrid;
+
+        public IReadOnlyList<CombatUnit> CombatUnits => _unitRegistry.CombatUnits;
+
+        public int CurrentRoundNumber => _turnCoordinator.CurrentRoundNumber;
+
+        public CombatFaction CurrentFaction => _turnCoordinator.CurrentFaction;
+
+        public CombatUnit CurrentCombatUnit => _turnCoordinator.CurrentCombatUnit;
+
+        public IReadOnlyList<BattleActionLog> ActionLogs => _readOnlyActionLogs;
+
+        public BattleSnapshot CreateSnapshot()
+        {
+            var unitSnapshots = new List<BattleUnitSnapshot>(CombatUnits.Count);
+            foreach (var unit in CombatUnits)
+            {
+                unitSnapshots.Add(new BattleUnitSnapshot(unit.UnitId, _unitRegistry.GetFaction(unit), unit.Position,
+                    unit.MechRuntime.CurrentDurability, unit.Mech.MaxDurability));
+            }
+
+            return new BattleSnapshot(Grid.Width, Grid.Height, CurrentRoundNumber, CurrentFaction,
+                CurrentCombatUnit.UnitId, unitSnapshots);
+        }
+
+        public BattleActionResult TryMoveCurrentCombatUnit(Vector2Int target)
+        {
+            var actorUnit = CurrentCombatUnit;
+            var positionBefore = actorUnit.Position;
+            var sequence = ++_actionSequence;
+
+            var result = !_movementResolver.TryMoveTo(actorUnit, target)
+                ? BattleActionResult.Failed(sequence, BattleActionType.Move, actorUnit, BattleActionFailureReason.InvalidMoveTarget)
+                : BattleActionResult.MoveSucceeded(sequence, actorUnit, positionBefore, actorUnit.Position);
+            return RecordAction(result);
+        }
+
+        public BattleActionResult AttackTargetCombatUnit(CombatUnit targetUnit)
+        {
+            if (targetUnit == null)
+            {
+                throw new ArgumentNullException(nameof(targetUnit));
+            }
+
+            if (!_unitRegistry.Contains(targetUnit))
+            {
+                throw new ArgumentException("Target unit does not belong to this battle session.", nameof(targetUnit));
+            }
+
+            var attackerUnit = CurrentCombatUnit;
+            var sequence = ++_actionSequence;
+            if (_unitRegistry.GetFaction(attackerUnit) == _unitRegistry.GetFaction(targetUnit))
+            {
+                var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
+                    BattleActionFailureReason.SameFactionTarget);
+                return RecordAction(result, targetUnitId: targetUnit.UnitId);
+            }
+
+            if (targetUnit.IsDead())
+            {
+                var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
+                    BattleActionFailureReason.TargetAlreadyDead);
+                return RecordAction(result, targetUnitId: targetUnit.UnitId);
+            }
+
+            var durabilityBefore = targetUnit.MechRuntime.CurrentDurability;
+            try
+            {
+                _attackResolver.Attack(attackerUnit, targetUnit);
+            }
+            catch (InvalidOperationException)
+            {
+                var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
+                    BattleActionFailureReason.TargetNotAdjacent);
+                return RecordAction(result, targetUnitId: targetUnit.UnitId);
+            }
+
+            var successResult = BattleActionResult.AttackSucceeded(sequence, attackerUnit, targetUnit,
+                durabilityBefore, targetUnit.MechRuntime.CurrentDurability);
+            return RecordAction(successResult, targetUnitId: targetUnit.UnitId);
+        }
+
+        public BattleActionResult EndCurrentUnitAction()
+        {
+            var actorUnit = CurrentCombatUnit;
+            var roundNumberBefore = CurrentRoundNumber;
+            var factionBefore = CurrentFaction;
+            var sequence = ++_actionSequence;
+
+            _turnCoordinator.EndCurrentUnitAction();
+
+            var result = BattleActionResult.ActionEnded(sequence, actorUnit, CurrentCombatUnit, roundNumberBefore,
+                CurrentRoundNumber, factionBefore, CurrentFaction);
+            return RecordAction(result, nextUnitId: CurrentCombatUnit.UnitId);
+        }
+
+        public IReadOnlyList<CombatUnit> GetCurrentFactionCombatUnits()
+        {
+            return GetFactionCombatUnits(CurrentFaction);
+        }
+
+        public IReadOnlyList<CombatUnit> GetFactionCombatUnits(CombatFaction faction)
+        {
+            return _unitRegistry.GetFactionUnits(faction);
+        }
+
+        public CombatFaction GetCombatUnitFaction(CombatUnit combatUnit)
+        {
+            return _unitRegistry.GetFaction(combatUnit);
+        }
+
+        public IReadOnlyList<CombatUnit> GetAllAliveCombatUnits()
+        {
+            return _unitRegistry.GetAliveUnits();
+        }
+
+        public IReadOnlyList<CombatUnit> GetAllDeadCombatUnits()
+        {
+            return _unitRegistry.GetDeadUnits();
+        }
+
+        public bool AreFactionUnitsDead(CombatFaction faction)
+        {
+            return _unitRegistry.AreFactionUnitsDead(faction);
+        }
+
+        private BattleActionResult RecordAction(BattleActionResult result, int? targetUnitId = null, int? nextUnitId = null)
+        {
+            _actionLogs.Add(new BattleActionLog(result, result.ActorUnit.UnitId, targetUnitId, nextUnitId));
+            return result;
+        }
+
+        private void ValidateUnitPositions(IReadOnlyList<CombatUnit> units, string parameterName)
+        {
+            foreach (var unit in units)
+            {
+                if (!_squareGrid.IsInside(unit.Position))
+                {
+                    throw new ArgumentOutOfRangeException(parameterName, unit.Position,
+                        "Combat unit position must be inside the battle grid.");
+                }
+            }
+        }
+    }
+}

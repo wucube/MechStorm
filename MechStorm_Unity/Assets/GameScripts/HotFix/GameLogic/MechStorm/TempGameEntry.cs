@@ -1,13 +1,25 @@
-using MechStorm.Battle.Combat;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Cysharp.Threading.Tasks;
+using MechStorm.Battle;
+using MechStorm.Battle.Diagnostics;
+using MechStorm.Battle.Units;
+using MechStorm.Presentation.Board;
+using MechStorm.Presentation.Controllers;
+using MechStorm.Presentation.Input;
+using MechStorm.Presentation.Units;
 using TEngine;
 using UnityEngine;
-using SquareGrid = MechStorm.Battle.Foundation.SquareGrid;
 using Vector2Int = MechStorm.Battle.Foundation.Vector2Int;
 
 namespace MechStorm.Presentation
 {
     public class TempGameEntry : MonoBehaviour
     {
+        private const int PlayerAUnitId = 1;
+        private const int EnemyAUnitId = 2;
+
         [SerializeField]
         private Transform _plane;
         [SerializeField]
@@ -25,15 +37,33 @@ namespace MechStorm.Presentation
         private Camera _camera;
         [SerializeField]
         private int _debugDamage = 10;
+        [SerializeField]
+        private LayerMask _battleInputLayerMask = Physics.DefaultRaycastLayers;
 
         private Transform _playerA;
         private CombatUnitVisual _playerAVisual;
+        private Transform _enemyA;
+        private CombatUnitVisual _enemyAVisual;
         private GridCoordinateConverter _coordConverter;
         private BattleBoardInputter _boardInputter;
         private BattlePresentationController _presentationController;
+        private BattleSession _battleSession;
         private CombatUnit _playerAUnit;
+        private CombatUnit _enemyAUnit;
         private Transform _playerAHealthBarAnchor;
+        private Transform _enemyAHealthBarAnchor;
         private UnitHealthBarView _playerAHealthBarView;
+        private UnitHealthBarView _enemyAHealthBarView;
+
+        public bool IsBattleReady => _battleSession != null;
+
+        public int CurrentRoundNumber => _battleSession?.CurrentRoundNumber ?? 0;
+
+        public string CurrentFactionName =>
+            _battleSession?.CurrentFaction.ToString() ?? "Not Ready";
+
+        public string CurrentUnitName =>
+            _battleSession?.CurrentCombatUnit.Pilot.Name ?? "Not Ready";
 
         void Start()
         {
@@ -53,6 +83,8 @@ namespace MechStorm.Presentation
             LogBoardValidation();
             CreateDebugMarkers();
             CreatePlayerA();
+            CreateEnemyA();
+            CreateBattleSession();
             CreateBoardInputter();
             CreatePresentationController();
         }
@@ -106,6 +138,11 @@ namespace MechStorm.Presentation
             {
                 renderer.material.color = color;
             }
+
+            if (marker.TryGetComponent<Collider>(out var markerCollider))
+            {
+                markerCollider.enabled = false;
+            }
         }
 
         private void CreatePlayerA()
@@ -121,7 +158,7 @@ namespace MechStorm.Presentation
             var pilot = new PilotData(1, "Player A", 3);
             var mech = new MechData(1, "Training Mech", 10, 100, 3);
 
-            _playerAUnit = factory.Create(pilot, mech, new Vector2Int(1, 1));
+            _playerAUnit = factory.Create(PlayerAUnitId, pilot, mech, new Vector2Int(1, 1));
         }
 
         private void CreatePlayerAVisual()
@@ -156,6 +193,64 @@ namespace MechStorm.Presentation
             _playerAHealthBarView.RefreshFacing();
         }
 
+        private void CreateEnemyA()
+        {
+            CreateEnemyAUnit();
+            CreateEnemyAVisual();
+            CreateEnemyAHealthBar();
+        }
+
+        private void CreateEnemyAUnit()
+        {
+            var factory = new CombatUnitFactory();
+            var pilot = new PilotData(2, "Enemy A", 3);
+            var mech = new MechData(2, "Training Enemy Mech", 10, 100, 3);
+
+            _enemyAUnit = factory.Create(
+                EnemyAUnitId, pilot, mech,
+                new Vector2Int(_boardWidth - 1, _boardHeight - 1));
+        }
+
+        private void CreateEnemyAVisual()
+        {
+            var unitObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            unitObject.name = "EnemyA";
+            unitObject.transform.localScale = new Vector3(
+                _cellSize * 0.6f,
+                _cellSize,
+                _cellSize * 0.6f);
+
+            var anchorObject = new GameObject("HealthBarAnchor");
+            anchorObject.transform.SetParent(unitObject.transform, false);
+            anchorObject.transform.localPosition = Vector3.up * 0.8f;
+            anchorObject.transform.localScale = Vector3.one;
+            _enemyAHealthBarAnchor = anchorObject.transform;
+
+            _enemyA = unitObject.transform;
+            _enemyAVisual = new CombatUnitVisual(
+                _enemyA,
+                _coordConverter,
+                _enemyA.localScale.y * 0.5f);
+            _enemyAVisual.RefreshPosition(_enemyAUnit.Position);
+            LogUnitStatus(_enemyAUnit, _enemyA.position);
+        }
+
+        private void CreateEnemyAHealthBar()
+        {
+            if (_enemyAHealthBarAnchor == null || _enemyAUnit == null)
+            {
+                Log.Error("[MechStorm] EnemyA health bar dependencies are not ready.");
+                return;
+            }
+
+            var camera = _camera != null ? _camera : Camera.main;
+            _enemyAHealthBarView = new UnitHealthBarView(
+                _enemyAHealthBarAnchor,
+                camera);
+            RefreshEnemyAHealthBar();
+            _enemyAHealthBarView.RefreshFacing();
+        }
+
         private void LogUnitStatus(CombatUnit combatUnit, Vector3 worldPosition)
         {
             Log.Info(
@@ -173,9 +268,37 @@ namespace MechStorm.Presentation
                 return;
             }
 
-            if (_presentationController.Tick())
+            var inputAction = _presentationController.Tick(out var actionUnit);
+            var actionResult = _presentationController.LastActionResult;
+            switch (inputAction)
             {
-                Log.Info($"[MechStorm] PlayerA moved to GridPosition: {_playerAUnit.Position}, WorldPosition: {_playerA.position}");
+                case BattleInputAction.CurrentUnitSelected:
+                    Log.Info(
+                        $"[MechStorm] Selected current unit " +
+                        $"{actionUnit.Pilot.Name}.");
+                    break;
+                case BattleInputAction.CurrentUnitMoved:
+                    Log.Info(
+                        $"[MechStorm] {actionResult.ActorUnit.Pilot.Name} moved to " +
+                        $"GridPosition: {actionResult.PositionAfter.Value}");
+                    break;
+                case BattleInputAction.TargetAttacked:
+                    RefreshHealthBar(actionResult.TargetUnit);
+                    Log.Info(
+                        $"[MechStorm] {actionResult.ActorUnit.Pilot.Name} attacked " +
+                        $"{actionResult.TargetUnit.Pilot.Name}, " +
+                        $"HP={actionResult.DurabilityBefore}->{actionResult.DurabilityAfter}/" +
+                        $"{actionResult.TargetUnit.Mech.MaxDurability}");
+                    if (actionResult.DurabilityAfter <= 0)
+                    {
+                        Log.Info($"[MechStorm] {actionResult.TargetUnit.Pilot.Name} was destroyed.");
+                    }
+                    break;
+                case BattleInputAction.ActionRejected:
+                    Log.Warning(
+                        $"[MechStorm] Battle input rejected: " +
+                        $"{_presentationController.LastRejectionReason}");
+                    break;
             }
         }
 
@@ -191,9 +314,22 @@ namespace MechStorm.Presentation
                 _playerAUnit.Mech.MaxDurability);
         }
 
+        private void RefreshEnemyAHealthBar()
+        {
+            if (_enemyAUnit == null || _enemyAHealthBarView == null)
+            {
+                return;
+            }
+
+            _enemyAHealthBarView.RefreshValue(
+                _enemyAUnit.MechRuntime.CurrentDurability,
+                _enemyAUnit.Mech.MaxDurability);
+        }
+
         private void RefreshHealthBarFacing()
         {
             _playerAHealthBarView?.RefreshFacing();
+            _enemyAHealthBarView?.RefreshFacing();
         }
 
         public void ApplyDebugDamageToPlayerA()
@@ -224,6 +360,149 @@ namespace MechStorm.Presentation
                 $"HP={_playerAUnit.MechRuntime.CurrentDurability}/{_playerAUnit.Mech.MaxDurability}");
         }
 
+        public void AttackCurrentOpponentForDebug()
+        {
+            if (_battleSession == null)
+            {
+                Log.Error("[MechStorm] Cannot attack before BattleSession is ready.");
+                return;
+            }
+
+            var targetUnit = GetDebugAttackTarget();
+            if (targetUnit == null)
+            {
+                Log.Warning(
+                    $"[MechStorm] No debug attack target for faction " +
+                    $"{_battleSession.CurrentFaction}.");
+                return;
+            }
+
+            var result = _battleSession.AttackTargetCombatUnit(targetUnit);
+            if (!result.IsSuccess)
+            {
+                Log.Warning($"[MechStorm] Debug attack rejected: {result.FailureReason}");
+                return;
+            }
+
+            RefreshHealthBar(result.TargetUnit);
+            Log.Info(
+                $"[MechStorm] {result.ActorUnit.Pilot.Name} attacked " +
+                $"{result.TargetUnit.Pilot.Name}, " +
+                $"HP={result.DurabilityBefore}->{result.DurabilityAfter}/" +
+                $"{result.TargetUnit.Mech.MaxDurability}");
+
+            if (result.DurabilityAfter <= 0)
+            {
+                Log.Info($"[MechStorm] {result.TargetUnit.Pilot.Name} was destroyed.");
+            }
+        }
+
+        public void EndCurrentUnitActionForDebug()
+        {
+            if (_battleSession == null)
+            {
+                Log.Error("[MechStorm] Cannot end unit action before BattleSession is ready.");
+                return;
+            }
+
+            LogCurrentBattleState("Before End Action");
+            var result = _presentationController != null
+                ? _presentationController.EndCurrentUnitAction()
+                : _battleSession.EndCurrentUnitAction();
+            Log.Info(
+                $"[MechStorm] {result.ActorUnit.Pilot.Name} ended action, " +
+                $"Next={result.NextCombatUnit.Pilot.Name}, " +
+                $"Round={result.RoundNumberBefore}->{result.RoundNumberAfter}, " +
+                $"Faction={result.FactionBefore}->{result.FactionAfter}");
+            LogCurrentBattleState("After End Action");
+        }
+
+        public void LogCurrentBattleStateForDebug()
+        {
+            if (_battleSession == null)
+            {
+                Log.Error("[MechStorm] Cannot log battle state before BattleSession is ready.");
+                return;
+            }
+
+            LogCurrentBattleState("Current Battle State");
+        }
+
+        public void ExportBattleDebugJsonForDebug()
+        {
+            if (_battleSession == null)
+            {
+                Log.Error("[MechStorm] Cannot export battle JSON before BattleSession is ready.");
+                return;
+            }
+
+            ExportBattleDebugJsonAsync().Forget();
+        }
+
+        private async UniTask ExportBattleDebugJsonAsync()
+        {
+            try
+            {
+                var snapshot = _battleSession.CreateSnapshot();
+                var json = BattleDebugJsonSerializer.Serialize(snapshot, _battleSession.ActionLogs);
+                var directoryPath = GetBattleDebugDirectoryPath();
+                Directory.CreateDirectory(directoryPath);
+
+                var fileName = $"battle_{DateTime.Now:yyyyMMdd_HHmmss_fff}.json";
+                var filePath = Path.Combine(directoryPath, fileName);
+                await File.WriteAllTextAsync(filePath, json);
+
+                Log.Info($"[MechStorm] Battle debug JSON exported to: {filePath}");
+            }
+            catch (Exception exception)
+            {
+                Log.Error($"[MechStorm] Failed to export battle debug JSON: {exception}");
+            }
+        }
+
+        private static string GetBattleDebugDirectoryPath()
+        {
+#if UNITY_EDITOR
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs", "BattleDebug"));
+#else
+            return Path.Combine(Application.persistentDataPath, "BattleDebug");
+#endif
+        }
+
+        private CombatUnit GetDebugAttackTarget()
+        {
+            return _battleSession.CurrentFaction switch
+            {
+                CombatFaction.TeamA => _enemyAUnit,
+                CombatFaction.TeamB => _playerAUnit,
+                _ => null,
+            };
+        }
+
+        private void RefreshHealthBar(CombatUnit combatUnit)
+        {
+            if (ReferenceEquals(combatUnit, _playerAUnit))
+            {
+                RefreshPlayerAHealthBar();
+                return;
+            }
+
+            if (ReferenceEquals(combatUnit, _enemyAUnit))
+            {
+                RefreshEnemyAHealthBar();
+            }
+        }
+
+        private void LogCurrentBattleState(string label)
+        {
+            var currentUnit = _battleSession.CurrentCombatUnit;
+            Log.Info(
+                $"[MechStorm] {label}: " +
+                $"Round={_battleSession.CurrentRoundNumber}, " +
+                $"Faction={_battleSession.CurrentFaction}, " +
+                $"Unit={currentUnit.Pilot.Name}/{currentUnit.Mech.Name}");
+        }
+
         private void CreateBoardInputter()
         {
             var camera = _camera != null ? _camera : Camera.main;
@@ -239,24 +518,61 @@ namespace MechStorm.Presentation
                 return;
             }
 
-            _boardInputter = new BattleBoardInputter(camera, boardCollider, _coordConverter);
+            if (!_playerA.TryGetComponent<Collider>(out var playerACollider) ||
+                !_enemyA.TryGetComponent<Collider>(out var enemyACollider))
+            {
+                Log.Error("[MechStorm] Combat unit input requires unit colliders.");
+                return;
+            }
+
+            var combatUnitColliders =
+                new Dictionary<Collider, CombatUnit>
+                {
+                    [playerACollider] = _playerAUnit,
+                    [enemyACollider] = _enemyAUnit,
+                };
+            _boardInputter = new BattleBoardInputter(
+                camera,
+                boardCollider,
+                _coordConverter,
+                combatUnitColliders,
+                _battleInputLayerMask.value);
         }
 
         private void CreatePresentationController()
         {
-            if (_playerAUnit == null || _playerAVisual == null || _boardInputter == null)
+            if (_battleSession == null ||
+                _playerAVisual == null ||
+                _enemyAVisual == null ||
+                _boardInputter == null)
             {
                 Log.Error("[MechStorm] BattlePresentationController dependencies are not ready.");
                 return;
             }
 
-            var grid = new SquareGrid(_boardWidth, _boardHeight);
-            var movementResolver = new MovementResolver(grid);
-            _presentationController = new BattlePresentationController(
-                _playerAUnit,
-                _playerAVisual,
-                movementResolver,
-                _boardInputter);
+            var combatUnitVisuals =
+                new Dictionary<CombatUnit, CombatUnitVisual>
+                {
+                    [_playerAUnit] = _playerAVisual,
+                    [_enemyAUnit] = _enemyAVisual,
+                };
+            _presentationController = new BattlePresentationController(_battleSession, combatUnitVisuals, _boardInputter);
+        }
+
+        private void CreateBattleSession()
+        {
+            if (_playerAUnit == null || _enemyAUnit == null)
+            {
+                Log.Error("[MechStorm] BattleSession requires PlayerA and EnemyA.");
+                return;
+            }
+
+            _battleSession = new BattleSession(
+                _boardWidth,
+                _boardHeight,
+                new[] { _playerAUnit },
+                new[] { _enemyAUnit });
+            LogCurrentBattleState("Battle Started");
         }
     }
 }

@@ -2,10 +2,10 @@
 
 ## 当前阶段
 
-- 当前里程碑：P1 / Sprint 2
-- 当前任务：Task 2.1 战斗流程控制器规划
+- 当前里程碑：P1 / Sprint 3
+- 当前任务：Sprint 3 空间、攻击范围与技能雏形
 - 当前状态：待开始
-- 最后更新：2026-06-28
+- 最后更新：2026-07-16
 
 ## 状态约定
 
@@ -121,55 +121,58 @@
 
 ## P1 / Sprint 2~3：核心机制深化
 
-- [ ] Sprint 2：实体与战斗深化
-  - 状态：待开始
+- [x] Sprint 2：实体与战斗深化
+  - 状态：已完成
   - 总目标：从单单位移动演示升级为最小战斗流程，支持多个单位、当前行动单位、移动 / 普通攻击、扣血、死亡、回合推进与表现同步
-  - 完成标准：场上至少有 PlayerA 与 EnemyA；玩家可移动、攻击相邻敌人；敌人扣血后血条刷新；HP 为 0 后不再行动；回合可从 Player 切到 Enemy 再切回 Player
+  - 完成标准：场上至少有 TeamA 与 TeamB 各一个单位；当前单位可移动、攻击相邻敌对单位；目标扣血后血条刷新；HP 为 0 后不再行动；回合可从 TeamA 切到 TeamB 再切回 TeamA
   - 备注：继续使用 `TempGameEntry` 作为测试入口，不立即接 TEngine 正式流程；先把 Battle 纯 C# 核心机制跑通
 
-- [ ] Task 2.1 战斗流程控制器：`BattleController` / `BattleSession`
-  - 状态：未开始
+- [x] Task 2.1 战斗流程控制器：`BattleController` / `BattleSession`
+  - 状态：已完成
   - 完成标准：集中管理棋盘、单位列表、当前回合、当前行动方与当前行动单位；提供移动、攻击、结束行动等入口
-  - 验证方式：EditMode 测试覆盖初始化、当前行动单位、行动结果与基础异常输入
-  - 备注：不要让 `TempGameEntry` 继续直接持有全部战斗规则；`TempGameEntry` 只创建测试战斗并同步表现
+  - 验证方式：`MechStorm.Battle.Tests` 与 `GameLogic` 编译通过；EditMode 测试覆盖初始化、当前行动单位、移动、攻击、结束行动与基础异常输入，已由开发者在 Unity Test Runner 手动验证通过
+  - 备注：`BattleSession` 已作为棋盘、单位注册表、回合状态机和规则服务的统一入口；`TempGameEntry` 只创建测试战斗，`BattlePresentationController` 通过会话执行移动；结构化 `BattleActionResult` 仍按 Task 2.6 引入
 
-- [ ] Task 2.2 多单位与阵营管理
-  - 状态：未开始
-  - 完成标准：支持 Player / Enemy 至少两个阵营；能查询存活单位、死亡单位、当前阵营单位；死亡单位不能再行动
-  - 验证方式：EditMode 测试覆盖阵营查询、死亡跳过与所有单位死亡判断
+- [x] Task 2.2 多单位与阵营管理
+  - 状态：已完成
+  - 完成标准：支持 `TeamA / TeamB` 至少两个稳定阵营；能查询存活单位、死亡单位、当前阵营单位；死亡单位不能再行动
+  - 验证方式：`MechStorm.Battle.Tests` 与 `GameLogic` 编译通过；EditMode 测试覆盖阵营与成员查询、Neutral、死亡跳过、死亡单位禁止行动及阵营全灭判断，已由开发者在 Unity Test Runner 手动验证通过
+  - 备注：实际范围比原计划略有扩展：新增可选 `Neutral` 阵营；拆出无 Grid 依赖的 `CombatUnitRegistry`，统一负责成员、阵营、存活、死亡、空集合、重复注册和跨阵营重复校验；单位初始位置合法性仍由拥有棋盘的 `BattleSession` 校验。当前 `BattleSession` 已具备“阵营内查找下一存活单位并切换阵营”的临时逻辑，属于 Task 2.3 的提前雏形，但尚未拆出 `TurnCoordinator`、建立行动状态与新回合重置，因此不视为 Task 2.3 完成
 
-- [ ] Task 2.3 行动流程与回合推进：`TurnCoordinator`
-  - 状态：未开始
+- [x] Task 2.3 行动流程与回合推进：`TurnCoordinator`
+  - 状态：已完成
   - 完成标准：单位行动后能进入下一个可行动单位；阵营内所有可行动单位完成后切换阵营；新回合重置行动状态
-  - 验证方式：EditMode 测试覆盖行动完成、死亡跳过、阵营切换与回合循环
+  - 验证方式：`MechStorm.Battle.Tests`、`MechStorm.Presentation`、`GameLogic` 与 `Assembly-CSharp-Editor` 编译通过；Unity Test Runner 全部测试由开发者手动验证通过；Play Mode 已验证 TeamA / TeamB 切换、当前单位变化、回合数递增和对应单位表现移动
+  - 备注：已用 `TurnCoordinator` 替代仅切换 Player / Enemy 的 `TurnStateMachine` / `TurnPhase`，集中管理当前回合、当前阵营、当前单位索引、死亡跳过和阵营推进；`BattleSession` 只保留委托入口，Neutral 不进入自动行动顺序。实际范围略有扩展：补齐 EnemyA 表现与血条、按 `CombatUnit` 映射 Visual、Inspector 战斗状态面板、行动结束调试按钮和切换前后日志。这些内容分别为 Task 2.4 的敌方表现、Task 2.5 的结束行动入口和 Task 2.6 的调试观察能力提供了前置验证，但尚不等同于正式攻击交互、游戏 UI 或结构化结果通知
 
-- [ ] Task 2.4 普通攻击接入战斗流程
-  - 状态：未开始
+- [x] Task 2.4 普通攻击接入战斗流程
+  - 状态：已完成
   - 完成标准：通过 `BattleController` 调用 `AttackResolver`；攻击后目标扣耐久，目标血条刷新；HP 归零后进入死亡状态
-  - 验证方式：EditMode 测试覆盖相邻攻击、非相邻失败、扣血、死亡；Unity Play Mode 手动验证血条刷新
+  - 验证方式：Battle、Battle.Tests、Presentation、GameLogic 与 Editor 编译通过；EditMode 测试覆盖相邻攻击、非相邻失败、致死、空目标、未注册目标、同阵营目标、死亡目标和 TeamB 反向攻击；Unity Play Mode 血条刷新、失败日志和死亡日志已由开发者手动验证通过
+  - 备注：`BattleSession` 负责成员、阵营和死亡目标校验，`AttackResolver` 保持距离与伤害结算职责；临时 Inspector 增加当前单位攻击对方的验证入口，攻击成功后按目标单位刷新血条。正式点击敌方单位选择目标仍属于 Task 2.5，结构化攻击结果仍属于 Task 2.6
 
-- [ ] Task 2.5 最小战斗输入
-  - 状态：未开始
+- [x] Task 2.5 最小战斗输入
+  - 状态：已完成
   - 完成标准：支持点击当前单位、点击格子移动、点击敌方单位普通攻击，以及最小结束回合入口
-  - 验证方式：Unity Play Mode 手动验证“选单位 → 移动 / 攻击 → 回合推进”的最小闭环
-  - 备注：先不做技能栏、部署拖拽、移动范围高亮和正式 TEngine `BattleMainUI`
+  - 验证方式：Presentation、GameLogic、Editor 与 Battle.Tests 编译通过；开发者已在 Unity Play Mode 手动验证未选择拒绝、当前单位选择、格子移动、相邻攻击、非法攻击、血条刷新、行动结束和阵营切换后的重新选择，结果均正常
+  - 备注：已将输入检测改为 Camera 生成射线并通过单次 `Physics.Raycast` 区分单位 Collider 与棋盘 Collider；表现控制器维护当前选择，未选择时拒绝移动和攻击，移动成功后刷新单位位置，攻击成功后刷新目标血条，行动结束后清空选择。Collider 到 `CombatUnit`、`CombatUnit` 到 `CombatUnitVisual` 的映射只存在于表现层；`BattleInputAction` 仅描述本地输入处理结果，不替代 Task 2.6 的结构化战斗结果。先不做技能栏、部署拖拽、移动范围高亮和正式 TEngine `BattleMainUI`
 
-- [ ] Task 2.6 战斗结果通知
-  - 状态：未开始
+- [x] Task 2.6 战斗结果通知
+  - 状态：已完成
   - 完成标准：移动、攻击、扣血、死亡、回合开始 / 结束等行为能以结果对象或本地事件形式返回给表现层
-  - 验证方式：EditMode 测试覆盖结果内容；表现层根据结果刷新单位位置、血条和日志
-  - 备注：P1 先使用纯 C# 结果对象或本地事件；不急着接 TEngine `GameEvent`
+  - 验证方式：Battle、Battle.Tests、Presentation、GameLogic 与 Editor 编译通过；EditMode 单元测试全部通过；Unity Play Mode 已由开发者手动验证移动、攻击、扣血、死亡和回合推进结果均正常
+  - 备注：已引入纯 C# `BattleActionResult`、`BattleActionType`、`BattleActionFailureReason` 与 `BattleActionChangeType`；移动、攻击和结束行动统一返回结构化结果，表现层按结果刷新位置、血条和日志。正常玩法拒绝使用失败结果，非法调用仍使用异常；暂不接 TEngine `GameEvent`
 
-- [ ] Task 2.7 轻量战斗快照与调试导出
-  - 状态：未开始
+- [x] Task 2.7 轻量战斗快照与调试导出
+  - 状态：已完成
   - 完成标准：可从纯 Battle 逻辑层导出 `BattleSnapshot` 与关键 `BattleActionLog`；失败测试或手动调试时能输出 JSON 诊断数据，用于离线分析战斗状态
-  - 验证方式：EditMode 测试构造一段移动 / 攻击 / 回合推进流程，导出的快照包含回合、当前行动方、当前单位、棋盘、单位列表、位置、HP、死亡状态、行动状态与关键行为记录
-  - 备注：排在 Task 2.6 之后，因为它依赖 `BattleController`、多单位管理、回合推进和结果通知；Sprint 2 只做轻量调试导出，不做完整录像、悔棋、正式回放 UI 或权威回放系统
+  - 验证方式：Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 编译通过；开发者已确认 Play Mode、EditMode 单元测试和 JSON 文件导出均正常
+  - 备注：已完成稳定且大于零的显式 `UnitId`、Registry 唯一性和按 ID 查询、Session 快照与行动日志、版本化 JSON 序列化、Inspector 导出入口及防御性复制测试；Snapshot 记录创建时的完整战场数据，ActionLog 记录每次已提交操作的结果和相关变化。Sprint 2 不实现动态召唤、完整录像、悔棋、正式回放 UI 或权威回放系统
 
 - [ ] Sprint 3：空间、攻击范围与技能雏形
   - 状态：未开始
   - 总目标：在普通移动 / 普通攻击稳定后，再引入攻击范围、武器范围、地形 / 占格规则与最小主动技能
-  - 备注：技能可以比 Buff 早引入；Buff / Modifier / Trigger 不在 Sprint 3 初期展开
+  - 备注：技能可以比 Buff 早引入；Buff / Modifier / Trigger 不在 Sprint 3 初期展开。若首个真实主动召唤技能进入开发，则在目标规则、占格规则和最小技能流程稳定后，将动态召唤作为独立垂直切片实现；没有实际召唤技能时继续后置。若技能、多目标或复杂伤害使 `BattleActionResult` 出现大量互斥可空字段，再将具体结果拆为移动、耐久、死亡和回合等有数据的变化对象，由 Result 只保留公共信息与有序变化列表。仅当移动、攻击或伤害流程出现参数过多、多个步骤共享并修改中间数据时，才引入最小 `MoveContext`、`AttackContext` 或 `DamageContext`；否则继续使用参数和局部变量，并将正式 Context 体系留到 P2
 
 ## P2 / Sprint 4~5：工程化与解耦
 
@@ -182,10 +185,12 @@
 - [ ] Sprint 4：TEngine 接入 + 架构重构
   - 备注：PVP / 多阵营 / 敌方先手等规则应拆为 `InitiativeResolver` 生成初始行动顺序，`TurnStateMachine` 只负责按顺序推进；随机先手、速度先手、剧情指定先手都属于先手规则，不属于状态机本体
 - [ ] Sprint 5：数据与回溯
+  - 备注：正式进入 Command Replay、回放或 PVP 前增加独立 `BattleCommandLog`，记录 `Sequence`、操作类型、`ActorUnitId`、请求目标位置 / 单位、是否接受与失败原因，用于表达“玩家或 AI 想做什么”；`BattleActionLog` 继续记录核心“实际发生了什么”，`BattleSnapshot` 记录操作后的世界状态。本地点击、选择和未提交到 Session 的输入拒绝只属于开发期 `InputTrace`，不写入权威战斗日志
 
 ## P3 / Sprint 6+：扩展与商业化
 
 - [ ] 背包词条、元件系统、天赋树、Utility AI、HybridCLR、YooAsset、状态透视仪、养成、录像
+  - 备注：天赋触发召唤不直接操作单位注册表，而是通过 Trigger / Ability 复用已建立的统一召唤入口；若此前没有主动召唤玩法，则在首个真实天赋召唤需求进入时补齐动态单位生命周期
 
 ## 决策记录
 
@@ -204,6 +209,10 @@
 | 2026-06-28 | Buff / Modifier / Trigger 后置，技能雏形可在普通攻击稳定后引入 | Buff 会牵扯持续时间、叠层、触发时机、属性修正、驱散和免疫，过早引入会让基础战斗流程复杂化 | Sprint 2 不做 Buff / 技能；Sprint 3 可做最小主动技能；P2 再引入 Buff、Modifier、Trigger 与轻量 GAS 变种 |
 | 2026-06-28 | 输入 UI 分阶段接入，先做最小战斗输入 | 技能栏、目标选择、部署拖拽和正式 UI 都依赖稳定的战斗流程和单位管理 | Sprint 2 只做点击单位、点击格子移动、点击敌方普通攻击与结束回合；Sprint 3 再做技能按钮和目标选择；部署拖拽单独作为 BattlePreparation / Deployment 阶段 |
 | 2026-06-28 | 轻量战斗快照与调试导出排入 Sprint 2 后段 | 离线调试需要依赖 BattleController、多单位、回合推进和结果通知，太早做会缺少稳定数据源；但等到 P2 再做会降低后续逻辑调试效率 | Sprint 2 在 Task 2.6 之后追加 Task 2.7，只做 `BattleSnapshot`、关键 `BattleActionLog` 和 JSON 诊断导出；完整 Command Replay、Result Replay、悔棋和录像仍放到 Sprint 5 / P2 |
+| 2026-07-12 | 分离持久阵营、流程阶段、行动角色与本地敌我视角 | `Player / Enemy` 是客户端相对关系，不能作为 PVP 服务端状态和回放日志中的稳定身份；`Attacker / Defender` 也只描述单次行动 | Task 2.2 使用 `TeamA / TeamB / Neutral` 表达稳定阵营，Task 2.3 的流程阶段不再充当阵营参数；Task 2.7 与后续 PVP 回放记录统一的客观权威日志，客户端按观察者阵营映射 `Ally / Enemy / Neutral` |
+| 2026-07-15 | `CombatUnit` 使用本场战斗内稳定的显式 `UnitId`，动态召唤按真实玩法需求分阶段接入 | Snapshot、日志和回放不能依赖运行时对象引用；召唤同时影响注册、占格、回合队列、结果、表现和恢复，不应在 Task 2.7 提前实现，也不应等到天赋开发时临时拼接 | Task 2.7 只完成初始单位 ID、唯一性和查询；首个真实主动召唤技能可在 Sprint 3 后段作为独立垂直切片实现；天赋触发召唤在 P3 通过 Trigger / Ability 复用统一召唤入口。回放重建新对象，但沿用记录中的相同数字身份和数据 |
+| 2026-07-15 | 正式 Command、回放与 PVP 使用 `BattleCommandLog + BattleActionLog + BattleSnapshot` 分层记录 | 输入意图、权威结算事实和世界状态解决的问题不同；把本地点击拒绝混入权威日志会污染回放，把请求参数只放在 Result 中又无法解释失败操作原本想做什么 | Task 2.7 继续只做 ActionLog 与 Snapshot；Sprint 5 / P2 增加 BattleCommandLog。未进入 Session 的 UI 输入拒绝保留为非权威 InputTrace，调用契约异常进入错误日志 |
+| 2026-07-16 | Battle 与 Presentation 按职责目录和命名空间归类，保持现有 asmdef 边界 | 原 `MechStorm.Battle.Combat` 已同时容纳单位、回合、规则、行动结果和调试数据，无法继续表达职责；Sprint 3 还会增加空间、范围和技能脚本 | Battle 使用 `Actions / Diagnostics / Foundation / Numeric / Rules / Snapshots / Spatial / Turns / Units`，`BattleSession` 保留在根命名空间；Presentation 使用 `Board / Controllers / Input / Units`，测试目录同步镜像，不拆分程序集 |
 
 ## Git 版本管理约定
 
@@ -221,6 +230,6 @@
 
 ## 下一步
 
-1. 从 `main` 新建 `feature/p1-sprint2-battle-controller` 分支。
-2. 开始 Task 2.1：设计 `BattleController` / `BattleSession` 的最小职责和接口。
-3. 优先补 EditMode 测试，验证多单位、当前行动单位、移动 / 攻击入口与回合推进的核心规则。
+1. 明确 Sprint 3 的首个可验证任务和验收边界。
+2. 优先推进空间、占格与攻击范围规则，保持 Battle 纯 C# 和现有职责目录边界。
+3. 在目标规则稳定后接入最小主动技能；没有真实召唤技能时继续后置动态召唤。

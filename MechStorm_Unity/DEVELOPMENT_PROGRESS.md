@@ -3,8 +3,8 @@
 ## 当前阶段
 
 - 当前里程碑：P1 / Sprint 3
-- 当前任务：Task 3.1 战场占格与位置查询
-- 当前状态：待开始
+- 当前任务：Task 3.2 占格感知的移动范围
+- 当前状态：Sprint 3 进行中；Task 3.1 已完成，Task 3.2 待开始
 - 最后更新：2026-07-18
 
 ## 状态约定
@@ -169,17 +169,17 @@
   - 验证方式：Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 编译通过；开发者已确认 Play Mode、EditMode 单元测试和 JSON 文件导出均正常
   - 备注：已完成稳定且大于零的显式 `UnitId`、Registry 唯一性和按 ID 查询、Session 快照与行动日志、版本化 JSON 序列化、Inspector 导出入口及防御性复制测试；Snapshot 记录创建时的完整战场数据，ActionLog 记录每次已提交操作的结果和相关变化。Sprint 2 不实现动态召唤、完整录像、悔棋、正式回放 UI 或权威回放系统
 
-- [ ] Sprint 3：占格、攻击范围与目标规则
-  - 状态：未开始
+- [~] Sprint 3：占格、攻击范围与目标规则
+  - 状态：进行中
   - 总目标：建立统一的动态占格、可移动范围、普通攻击范围和候选目标查询，让 Battle 成为移动与攻击合法性的唯一事实来源，并提供最小范围高亮供 Play Mode 验收
   - 完成标准：存活单位不能初始重叠、不能移动到或穿过其他存活单位；死亡单位释放占格；普通攻击使用显式最小 / 最大范围；Battle 可无副作用查询移动格、攻击格与合法目标；Presentation 只消费查询结果显示高亮
   - 备注：继续使用等代价 BFS 和瞬移表现，不实现地形 Cost、Dijkstra、A*、路径动画、技能、Buff、Modifier、Trigger 或完整目标选择框架；只有出现第二个真实 Selector / Filter 使用方时才提取接口
 
-- [ ] Task 3.1 战场占格与位置查询
-  - 状态：未开始
+- [x] Task 3.1 战场占格与位置查询
+  - 状态：已完成
   - 完成标准：可查询指定格子的存活单位并判断是否被占用；战斗初始化拒绝存活单位位置重叠；死亡单位不再占格
-  - 验证方式：EditMode 覆盖空格、三种阵营占格、初始重叠、死亡释放占格、越界查询契约；Battle 保持纯 C#
-  - 备注：`SquareGrid` 继续只管理边界和拓扑，不保存单位；占格是单位位置形成的动态事实，暂不提前引入三层 `SpatialManager`
+  - 验证方式：新增 `BattleOccupancyTests`，覆盖空格、三种阵营占格、初始存活单位重叠、死亡释放占格、死亡单位与存活单位共格及越界查询契约；纯 C# NUnit 隔离运行 8 / 8 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；Unity Test Runner 单元测试已由开发者手动验证通过
+  - 备注：`BattleSession` 新增 `TryGetAliveCombatUnitAt` 与 `IsPositionOccupied`；`SquareGrid` 继续只管理边界和拓扑，不保存单位；占格由存活单位当前位置动态计算，暂不提前引入三层 `SpatialManager`
 
 - [ ] Task 3.2 占格感知的移动范围
   - 状态：未开始
@@ -356,6 +356,6 @@
 
 ## 下一步
 
-1. 从最新 `main` 创建 `feature/p1-sprint3-spatial-rules`。
-2. 将 Sprint 3 与 Task 3.1 标记为进行中，先实现战场占格与位置查询。
-3. 按 Task 3.1 → 3.5 顺序逐项验收，不在 Sprint 3 提前引入技能、地形 Cost 或 A*。
+1. 将 Task 3.2 标记为进行中，把占格查询接入 BFS 可达范围与最终移动校验。
+2. 验证己方、敌方和 Neutral 单位均会阻挡移动，死亡单位不阻挡。
+3. 继续保持瞬移表现，不在 Task 3.2 提前引入 A* 或路径动画。

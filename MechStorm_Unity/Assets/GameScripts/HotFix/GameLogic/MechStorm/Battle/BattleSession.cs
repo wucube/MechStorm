@@ -33,6 +33,7 @@ namespace MechStorm.Battle
             ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.TeamA), nameof(teamAUnits));
             ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.TeamB), nameof(teamBUnits));
             ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.Neutral), nameof(neutralUnits));
+            ValidateAliveUnitPositionsDoNotOverlap();
             _turnCoordinator = new TurnCoordinator(_unitRegistry);
         }
 
@@ -157,6 +158,28 @@ namespace MechStorm.Battle
             return _unitRegistry.GetDeadUnits();
         }
 
+        public bool TryGetAliveCombatUnitAt(Vector2Int position, out CombatUnit combatUnit)
+        {
+            ValidateGridPosition(position, nameof(position));
+
+            foreach (var unit in CombatUnits)
+            {
+                if (unit.IsAlive() && unit.Position == position)
+                {
+                    combatUnit = unit;
+                    return true;
+                }
+            }
+
+            combatUnit = null;
+            return false;
+        }
+
+        public bool IsPositionOccupied(Vector2Int position)
+        {
+            return TryGetAliveCombatUnitAt(position, out _);
+        }
+
         public bool AreFactionUnitsDead(CombatFaction faction)
         {
             return _unitRegistry.AreFactionUnitsDead(faction);
@@ -172,11 +195,28 @@ namespace MechStorm.Battle
         {
             foreach (var unit in units)
             {
-                if (!_squareGrid.IsInside(unit.Position))
+                ValidateGridPosition(unit.Position, parameterName);
+            }
+        }
+
+        private void ValidateAliveUnitPositionsDoNotOverlap()
+        {
+            var occupiedPositions = new HashSet<Vector2Int>();
+            foreach (var unit in CombatUnits)
+            {
+                if (unit.IsAlive() && !occupiedPositions.Add(unit.Position))
                 {
-                    throw new ArgumentOutOfRangeException(parameterName, unit.Position,
-                        "Combat unit position must be inside the battle grid.");
+                    throw new ArgumentException("Alive combat units cannot share the same grid position.");
                 }
+            }
+        }
+
+        private void ValidateGridPosition(Vector2Int position, string parameterName)
+        {
+            if (!_squareGrid.IsInside(position))
+            {
+                throw new ArgumentOutOfRangeException(parameterName, position,
+                    "Grid position must be inside the battle grid.");
             }
         }
     }

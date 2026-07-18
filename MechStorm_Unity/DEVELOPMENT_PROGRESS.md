@@ -3,8 +3,8 @@
 ## 当前阶段
 
 - 当前里程碑：P1 / Sprint 3
-- 当前任务：Task 3.3 基础攻击配置与攻击范围
-- 当前状态：Sprint 3 进行中；Task 3.2 已完成，Task 3.3 待开始
+- 当前任务：Task 3.4 范围与候选目标查询
+- 当前状态：Sprint 3 进行中；Task 3.3 已完成，Task 3.4 待开始
 - 最后更新：2026-07-18
 
 ## 状态约定
@@ -187,11 +187,11 @@
   - 验证方式：`SquareGridTests`、`MovementResolverTests` 与 `BattleOccupancyTests` 覆盖己方 / 敌方 / Neutral 阻挡、狭窄通道、可绕行路径、目标格占用、死亡单位放行、当前单位起点和失败后状态不变；纯 C# NUnit 隔离运行 102 / 102 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已确认 Task 3.2 验收无问题
   - 备注：`SquareGrid` 的 BFS 新增动态阻挡谓词，`MovementResolver` 的查询和最终移动共同使用该谓词，`BattleSession` 注入存活单位占格事实；继续使用瞬移，不提前实现 A* 或路径动画
 
-- [ ] Task 3.3 基础攻击配置与攻击范围
-  - 状态：未开始
+- [x] Task 3.3 基础攻击配置与攻击范围
+  - 状态：已完成
   - 完成标准：普通攻击由显式伤害、最小射程和最大射程描述；近战、远程和最小射程规则均可验证；失败原因从固定“非相邻”升级为通用“目标超出范围”
-  - 验证方式：EditMode 覆盖距离边界、过近、过远、同阵营、死亡、未注册目标与成功伤害
-  - 备注：只建立一个最小基础攻击配置，不提前实现多挂载点、切换武器、弹药、冷却、命中率或完整 Luban 武器表
+  - 验证方式：`CombatUnitTests` 与 `BattleSessionTests` 覆盖攻击配置不变量、最小 / 最大射程边界、过近、过远、曼哈顿距离、成功伤害和失败状态不变，并保留同阵营、死亡、未注册目标与致死伤害测试；纯 C# NUnit 隔离运行 112 / 112 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已手动验证无问题
+  - 备注：新增不可变 `BasicAttackData`，`AttackResolver.TryAttack` 使用配置伤害和闭区间射程，范围失败统一为 `TargetOutOfRange`；调试 JSON 因失败原因契约变化升级到 Schema 2；不提前实现多挂载点、切换武器、弹药、冷却、命中率或完整 Luban 武器表
 
 - [ ] Task 3.4 范围与候选目标查询
   - 状态：未开始
@@ -357,6 +357,6 @@
 
 ## 下一步
 
-1. 由开发者实现 Task 3.3，引入最小基础攻击配置与显式最小 / 最大射程。
-2. 开发完成后由 AI 审查实现边界、规则一致性和测试覆盖，再同步验收结果。
-3. 将攻击失败原因从固定“非相邻”升级为通用“目标超出范围”，不提前加入武器切换、弹药或命中率。
+1. 开始 Task 3.4，为当前单位提供无副作用的移动格、普通攻击覆盖格与合法目标查询。
+2. 保证查询结果与最终移动、攻击校验使用同一套 Battle 规则。
+3. 不提前实现范围高亮或完整 TargetSelector / Filter。

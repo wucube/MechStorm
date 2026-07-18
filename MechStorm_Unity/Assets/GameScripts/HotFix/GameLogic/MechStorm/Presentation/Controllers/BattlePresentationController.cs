@@ -134,7 +134,7 @@ namespace MechStorm.Presentation.Controllers
             return failureReason switch
             {
                 BattleActionFailureReason.InvalidMoveTarget => "Current combat unit cannot move to the selected grid position.",
-                BattleActionFailureReason.TargetNotAdjacent => "Target combat unit must be adjacent.",
+                BattleActionFailureReason.TargetOutOfRange => "Target combat unit is outside attack range.",
                 BattleActionFailureReason.SameFactionTarget => "Cannot attack a combat unit from the same faction.",
                 BattleActionFailureReason.TargetAlreadyDead => "Cannot attack a dead combat unit.",
                 BattleActionFailureReason.ActorCannotAct => "Current combat unit cannot act.",

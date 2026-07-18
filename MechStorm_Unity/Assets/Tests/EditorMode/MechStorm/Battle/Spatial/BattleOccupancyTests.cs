@@ -1,4 +1,5 @@
 using System;
+using MechStorm.Battle.Data;
 using MechStorm.Battle.Foundation;
 using MechStorm.Battle.Units;
 using NUnit.Framework;
@@ -186,7 +187,7 @@ namespace MechStorm.Battle.Tests.Spatial
         private static CombatUnit CreateCombatUnit(int unitId, Vector2Int position, int moveRange = 3)
         {
             var pilot = new PilotData(unitId, $"Pilot {unitId}", 10);
-            var mech = new MechData(unitId, $"Mech {unitId}", 10, 100, moveRange);
+            var mech = new MechData(unitId, $"Mech {unitId}", new BasicAttackData(10, 1, 1), 100, moveRange);
             return new CombatUnitFactory().Create(unitId, pilot, mech, position);
         }
     }

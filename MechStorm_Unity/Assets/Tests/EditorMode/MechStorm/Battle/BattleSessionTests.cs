@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using MechStorm.Battle;
 using MechStorm.Battle.Actions;
+using MechStorm.Battle.Data;
 using MechStorm.Battle.Foundation;
 using MechStorm.Battle.Units;
 using NUnit.Framework;
@@ -158,9 +159,30 @@ namespace MechStorm.Battle.Tests
             var result = session.AttackTargetCombatUnit(enemyUnit);
 
             Assert.IsFalse(result.IsSuccess);
-            Assert.AreEqual(BattleActionFailureReason.TargetNotAdjacent, result.FailureReason);
+            Assert.AreEqual(BattleActionFailureReason.TargetOutOfRange, result.FailureReason);
             Assert.IsEmpty(result.ChangeTypes);
             Assert.AreEqual(80, enemyUnit.MechRuntime.CurrentDurability);
+        }
+
+        [TestCase(1, 0, false)]
+        [TestCase(2, 0, true)]
+        [TestCase(1, 2, true)]
+        [TestCase(4, 0, false)]
+        public void AttackTargetCombatUnit_UsesConfiguredMinimumAndMaximumRange(int targetX, int targetY, bool expectedSuccess)
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(0, 0), attack: 25,
+                minAttackRange: 2, maxAttackRange: 3);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(targetX, targetY), durability: 80);
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            var result = session.AttackTargetCombatUnit(enemyUnit);
+
+            Assert.AreEqual(expectedSuccess, result.IsSuccess);
+            Assert.AreEqual(
+                expectedSuccess ? BattleActionFailureReason.None : BattleActionFailureReason.TargetOutOfRange,
+                result.FailureReason);
+            Assert.AreEqual(expectedSuccess ? 55 : 80, enemyUnit.MechRuntime.CurrentDurability);
+            Assert.AreEqual(expectedSuccess ? 1 : 0, result.ChangeTypes.Count);
         }
 
         [Test]
@@ -332,7 +354,7 @@ namespace MechStorm.Battle.Tests
             var failedAttackLog = session.ActionLogs[2];
             Assert.AreEqual(3, failedAttackLog.Sequence);
             Assert.AreEqual(BattleActionType.Attack, failedAttackLog.ActionType);
-            Assert.AreEqual(BattleActionFailureReason.TargetNotAdjacent, failedAttackLog.FailureReason);
+            Assert.AreEqual(BattleActionFailureReason.TargetOutOfRange, failedAttackLog.FailureReason);
             Assert.AreEqual(2, failedAttackLog.TargetUnitId);
 
             var endActionLog = session.ActionLogs[3];
@@ -495,10 +517,13 @@ namespace MechStorm.Battle.Tests
             Vector2Int position,
             int attack = 10,
             int durability = 100,
-            int moveRange = 3)
+            int moveRange = 3,
+            int minAttackRange = 1,
+            int maxAttackRange = 1)
         {
             var pilot = new PilotData(id, $"Pilot {id}", 10);
-            var mech = new MechData(id, $"Mech {id}", attack, durability, moveRange);
+            var basicAttack = new BasicAttackData(attack, minAttackRange, maxAttackRange);
+            var mech = new MechData(id, $"Mech {id}", basicAttack, durability, moveRange);
             var factory = new CombatUnitFactory();
 
             return factory.Create(id, pilot, mech, position);

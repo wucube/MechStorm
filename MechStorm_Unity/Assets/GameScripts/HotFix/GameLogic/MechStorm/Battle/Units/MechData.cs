@@ -1,3 +1,6 @@
+using System;
+using MechStorm.Battle.Data;
+
 namespace MechStorm.Battle.Units
 {
     public sealed class MechData
@@ -6,17 +9,17 @@ namespace MechStorm.Battle.Units
         
         public string Name { get; }
         
-        public int Attack { get; }
+        public BasicAttackData BasicAttack { get; }
         
         public int MaxDurability { get; }
 
         public int MoveRange { get; }
 
-        public MechData(int id, string name, int attack, int maxDurability, int moveRange)
+        public MechData(int id, string name, BasicAttackData basicAttack, int maxDurability, int moveRange)
         {
             Id = id;
             Name = name;
-            Attack = attack;
+            BasicAttack = basicAttack ?? throw new ArgumentNullException(nameof(basicAttack));
             MaxDurability = maxDurability;
             MoveRange = moveRange;
         }

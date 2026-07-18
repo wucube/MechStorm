@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Cysharp.Threading.Tasks;
 using MechStorm.Battle;
+using MechStorm.Battle.Data;
 using MechStorm.Battle.Diagnostics;
 using MechStorm.Battle.Units;
 using MechStorm.Presentation.Board;
@@ -156,8 +157,7 @@ namespace MechStorm.Presentation
         {
             var factory = new CombatUnitFactory();
             var pilot = new PilotData(1, "Player A", 3);
-            var mech = new MechData(1, "Training Mech", 10, 100, 3);
-
+            var mech = new MechData(1, "Training Mech", new BasicAttackData(10, 2, 5), 100, 4);
             _playerAUnit = factory.Create(PlayerAUnitId, pilot, mech, new Vector2Int(1, 1));
         }
 
@@ -204,7 +204,7 @@ namespace MechStorm.Presentation
         {
             var factory = new CombatUnitFactory();
             var pilot = new PilotData(2, "Enemy A", 3);
-            var mech = new MechData(2, "Training Enemy Mech", 10, 100, 3);
+            var mech = new MechData(2, "Training Enemy Mech", new BasicAttackData(8, 1, 3), 100, 3);
 
             _enemyAUnit = factory.Create(
                 EnemyAUnitId, pilot, mech,

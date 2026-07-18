@@ -1,4 +1,5 @@
 using System;
+using MechStorm.Battle.Data;
 using MechStorm.Battle.Foundation;
 using MechStorm.Battle.Rules;
 using MechStorm.Battle.Spatial;
@@ -113,7 +114,7 @@ namespace MechStorm.Battle.Tests.Rules
         {
             var pilot = new PilotData(1, "Test Pilot", 10);
             var pilotRuntime = new PilotRuntime(6);
-            var mech = new MechData(101, "Test Mech", 25, 120, moveRange);
+            var mech = new MechData(101, "Test Mech", new BasicAttackData(25, 1, 1), 120, moveRange);
             var mechRuntime = new MechRuntime(80);
 
             return new CombatUnit(1, pilot, pilotRuntime, mech, mechRuntime, position);

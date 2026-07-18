@@ -103,14 +103,10 @@ namespace MechStorm.Battle
             }
 
             var durabilityBefore = targetUnit.MechRuntime.CurrentDurability;
-            try
-            {
-                _attackResolver.Attack(attackerUnit, targetUnit);
-            }
-            catch (InvalidOperationException)
+            if (!_attackResolver.TryAttack(attackerUnit, targetUnit))
             {
                 var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
-                    BattleActionFailureReason.TargetNotAdjacent);
+                    BattleActionFailureReason.TargetOutOfRange);
                 return RecordAction(result, targetUnitId: targetUnit.UnitId);
             }
 

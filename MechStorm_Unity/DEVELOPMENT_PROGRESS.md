@@ -3,8 +3,8 @@
 ## 当前阶段
 
 - 当前里程碑：P1 / Sprint 3
-- 当前任务：Task 3.2 占格感知的移动范围
-- 当前状态：Sprint 3 进行中；Task 3.1 已完成，Task 3.2 待开始
+- 当前任务：Task 3.3 基础攻击配置与攻击范围
+- 当前状态：Sprint 3 进行中；Task 3.2 已完成，Task 3.3 待开始
 - 最后更新：2026-07-18
 
 ## 状态约定
@@ -181,11 +181,11 @@
   - 验证方式：新增 `BattleOccupancyTests`，覆盖空格、三种阵营占格、初始存活单位重叠、死亡释放占格、死亡单位与存活单位共格及越界查询契约；纯 C# NUnit 隔离运行 8 / 8 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；Unity Test Runner 单元测试已由开发者手动验证通过
   - 备注：`BattleSession` 新增 `TryGetAliveCombatUnitAt` 与 `IsPositionOccupied`；`SquareGrid` 继续只管理边界和拓扑，不保存单位；占格由存活单位当前位置动态计算，暂不提前引入三层 `SpatialManager`
 
-- [ ] Task 3.2 占格感知的移动范围
-  - 状态：未开始
+- [x] Task 3.2 占格感知的移动范围
+  - 状态：已完成
   - 完成标准：当前单位自己的起点不算障碍；其他存活单位所在格不可停留且不能穿越；移动查询与最终移动校验使用同一套规则
-  - 验证方式：EditMode 覆盖己方 / 敌方 / Neutral 阻挡、狭窄通道、可绕行路径、目标格占用及失败后状态不变
-  - 备注：等代价格子继续使用 BFS；当前没有路径预览、逐格动画或 AI 路径消费方，因此不提前实现 A*
+  - 验证方式：`SquareGridTests`、`MovementResolverTests` 与 `BattleOccupancyTests` 覆盖己方 / 敌方 / Neutral 阻挡、狭窄通道、可绕行路径、目标格占用、死亡单位放行、当前单位起点和失败后状态不变；纯 C# NUnit 隔离运行 102 / 102 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已确认 Task 3.2 验收无问题
+  - 备注：`SquareGrid` 的 BFS 新增动态阻挡谓词，`MovementResolver` 的查询和最终移动共同使用该谓词，`BattleSession` 注入存活单位占格事实；继续使用瞬移，不提前实现 A* 或路径动画
 
 - [ ] Task 3.3 基础攻击配置与攻击范围
   - 状态：未开始
@@ -295,6 +295,7 @@
 - 动态召唤：首个真实召唤技能出现时，作为独立垂直切片插入，不固定占用某个 Sprint。
 - 完整 `IMapTopology` / Hex：只有第二种真实拓扑确定后才实施。
 - 正式地形美术、路径动画、移动插值、朝向和弹道导演：逻辑结果稳定且出现表现需求后实施。
+- 死亡单位表现注销与预制体回收：首次需要销毁或对象池回收单位表现时实施，统一清理 Collider、Visual、血条与选择状态映射，不纳入 Task 3.2。
 - 完整 Buff 叠层 / 刷新 / 驱散 / 免疫 / 光环、复杂 Modifier / Trigger 条件链：Sprint 10 状态主干验收后按真实玩法逐项进入。
 - 完整五步 `BattleResolver`、防御 / 暴击 / 条件增伤等伤害公式：Sprint 7 的最小确定性结算出现真实 Hook 和组合需求后再提取。
 - 三层 `SpatialManager`：地貌层、附着物层和占据层均出现真实独立数据后再从现有空间规则中提取，不为占格查询提前建立。
@@ -356,6 +357,6 @@
 
 ## 下一步
 
-1. 将 Task 3.2 标记为进行中，把占格查询接入 BFS 可达范围与最终移动校验。
-2. 验证己方、敌方和 Neutral 单位均会阻挡移动，死亡单位不阻挡。
-3. 继续保持瞬移表现，不在 Task 3.2 提前引入 A* 或路径动画。
+1. 由开发者实现 Task 3.3，引入最小基础攻击配置与显式最小 / 最大射程。
+2. 开发完成后由 AI 审查实现边界、规则一致性和测试覆盖，再同步验收结果。
+3. 将攻击失败原因从固定“非相邻”升级为通用“目标超出范围”，不提前加入武器切换、弹药或命中率。

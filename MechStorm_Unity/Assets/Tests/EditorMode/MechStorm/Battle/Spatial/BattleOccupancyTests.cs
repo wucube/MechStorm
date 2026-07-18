@@ -94,15 +94,99 @@ namespace MechStorm.Battle.Tests.Spatial
                 session.IsPositionOccupied(outsidePosition));
         }
 
+        [TestCase(CombatFaction.TeamA)]
+        [TestCase(CombatFaction.TeamB)]
+        [TestCase(CombatFaction.Neutral)]
+        public void TryMoveCurrentCombatUnit_RejectsOccupiedTargetAcrossFactions(CombatFaction blockingFaction)
+        {
+            var actor = CreateCombatUnit(1, new Vector2Int(0, 1), moveRange: 1);
+            var blocker = CreateCombatUnit(2, new Vector2Int(1, 1));
+            var teamAUnits = blockingFaction == CombatFaction.TeamA
+                ? new[] { actor, blocker }
+                : new[] { actor };
+            var teamBUnits = blockingFaction == CombatFaction.TeamB
+                ? new[] { blocker }
+                : new[] { CreateCombatUnit(3, new Vector2Int(4, 4)) };
+            var neutralUnits = blockingFaction == CombatFaction.Neutral
+                ? new[] { blocker }
+                : null;
+            var session = new BattleSession(5, 5, teamAUnits, teamBUnits, neutralUnits);
+
+            var result = session.TryMoveCurrentCombatUnit(blocker.Position);
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(new Vector2Int(0, 1), actor.Position);
+            Assert.AreEqual(1, session.ActionLogs.Count);
+            Assert.IsTrue(session.TryGetAliveCombatUnitAt(actor.Position, out var unitAtStart));
+            Assert.AreSame(actor, unitAtStart);
+            Assert.IsTrue(session.TryGetAliveCombatUnitAt(blocker.Position, out var unitAtTarget));
+            Assert.AreSame(blocker, unitAtTarget);
+        }
+
+        [Test]
+        public void TryMoveCurrentCombatUnit_CannotPassThroughOccupiedPosition()
+        {
+            var actor = CreateCombatUnit(1, new Vector2Int(0, 1), moveRange: 2);
+            var blocker = CreateCombatUnit(2, new Vector2Int(1, 1));
+            var session = new BattleSession(5, 5, new[] { actor }, new[] { blocker });
+
+            var result = session.TryMoveCurrentCombatUnit(new Vector2Int(2, 1));
+
+            Assert.IsFalse(result.IsSuccess);
+            Assert.AreEqual(new Vector2Int(0, 1), actor.Position);
+            Assert.AreEqual(1, session.ActionLogs.Count);
+        }
+
+        [Test]
+        public void TryMoveCurrentCombatUnit_CanDetourAroundOccupiedPosition()
+        {
+            var actor = CreateCombatUnit(1, new Vector2Int(0, 1), moveRange: 4);
+            var blocker = CreateCombatUnit(2, new Vector2Int(1, 1));
+            var target = new Vector2Int(2, 1);
+            var session = new BattleSession(5, 5, new[] { actor }, new[] { blocker });
+
+            var result = session.TryMoveCurrentCombatUnit(target);
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(target, actor.Position);
+        }
+
+        [Test]
+        public void TryMoveCurrentCombatUnit_AllowsPositionOfDeadUnit()
+        {
+            var actor = CreateCombatUnit(1, new Vector2Int(0, 1), moveRange: 1);
+            var deadUnit = CreateCombatUnit(2, new Vector2Int(1, 1));
+            deadUnit.MechRuntime.TakeDamage(deadUnit.Mech.MaxDurability);
+            var session = new BattleSession(5, 5, new[] { actor }, new[] { deadUnit });
+
+            var result = session.TryMoveCurrentCombatUnit(deadUnit.Position);
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(deadUnit.Position, actor.Position);
+        }
+
+        [Test]
+        public void TryMoveCurrentCombatUnit_AllowsCurrentUnitStartPosition()
+        {
+            var actor = CreateCombatUnit(1, new Vector2Int(1, 1));
+            var enemy = CreateCombatUnit(2, new Vector2Int(4, 4));
+            var session = new BattleSession(5, 5, new[] { actor }, new[] { enemy });
+
+            var result = session.TryMoveCurrentCombatUnit(actor.Position);
+
+            Assert.IsTrue(result.IsSuccess);
+            Assert.AreEqual(new Vector2Int(1, 1), actor.Position);
+        }
+
         private static BattleSession CreateBattleSession(CombatUnit teamAUnit, CombatUnit teamBUnit)
         {
             return new BattleSession(5, 5, new[] { teamAUnit }, new[] { teamBUnit });
         }
 
-        private static CombatUnit CreateCombatUnit(int unitId, Vector2Int position)
+        private static CombatUnit CreateCombatUnit(int unitId, Vector2Int position, int moveRange = 3)
         {
             var pilot = new PilotData(unitId, $"Pilot {unitId}", 10);
-            var mech = new MechData(unitId, $"Mech {unitId}", 10, 100, 3);
+            var mech = new MechData(unitId, $"Mech {unitId}", 10, 100, moveRange);
             return new CombatUnitFactory().Create(unitId, pilot, mech, position);
         }
     }

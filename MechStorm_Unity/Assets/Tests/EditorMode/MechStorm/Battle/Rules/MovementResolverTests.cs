@@ -61,6 +61,33 @@ namespace MechStorm.Battle.Tests.Rules
         }
 
         [Test]
+        public void TryMoveTo_DoesNotMoveThroughBlockedPosition()
+        {
+            var blockedPosition = new Vector2Int(2, 1);
+            var resolver = new MovementResolver(new SquareGrid(5, 5), position => position == blockedPosition);
+            var startPosition = new Vector2Int(1, 1);
+            var unit = CreateCombatUnit(2, startPosition);
+
+            var moved = resolver.TryMoveTo(unit, new Vector2Int(3, 1));
+
+            Assert.IsFalse(moved);
+            Assert.AreEqual(startPosition, unit.Position);
+        }
+
+        [Test]
+        public void TryMoveTo_CanDetourAroundBlockedPosition()
+        {
+            var blockedPosition = new Vector2Int(2, 2);
+            var resolver = new MovementResolver(new SquareGrid(5, 5), position => position == blockedPosition);
+            var unit = CreateCombatUnit(4, new Vector2Int(1, 2));
+
+            var moved = resolver.TryMoveTo(unit, new Vector2Int(3, 2));
+
+            Assert.IsTrue(moved);
+            Assert.AreEqual(new Vector2Int(3, 2), unit.Position);
+        }
+
+        [Test]
         public void CanMoveTo_ReturnsFalse_WhenUnitIsNull()
         {
             var resolver = new MovementResolver(new SquareGrid(5, 5));
@@ -74,6 +101,12 @@ namespace MechStorm.Battle.Tests.Rules
         public void Constructor_Throws_WhenGridIsNull()
         {
             Assert.Throws<ArgumentNullException>(() => new MovementResolver(null));
+        }
+
+        [Test]
+        public void Constructor_Throws_WhenBlockedPositionPredicateIsNull()
+        {
+            Assert.Throws<ArgumentNullException>(() => new MovementResolver(new SquareGrid(5, 5), null));
         }
 
         private static CombatUnit CreateCombatUnit(int moveRange, Vector2Int position)

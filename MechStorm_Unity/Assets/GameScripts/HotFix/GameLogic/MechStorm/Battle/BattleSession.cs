@@ -27,9 +27,9 @@ namespace MechStorm.Battle
             _actionLogs = new List<BattleActionLog>();
             _readOnlyActionLogs = _actionLogs.AsReadOnly();
             _squareGrid = new SquareGrid(boardWidth, boardHeight);
-            _movementResolver = new MovementResolver(_squareGrid);
-            _attackResolver = new AttackResolver(_squareGrid);
             _unitRegistry = new CombatUnitRegistry(teamAUnits, teamBUnits, neutralUnits);
+            _movementResolver = new MovementResolver(_squareGrid, IsPositionOccupied);
+            _attackResolver = new AttackResolver(_squareGrid);
             ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.TeamA), nameof(teamAUnits));
             ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.TeamB), nameof(teamBUnits));
             ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.Neutral), nameof(neutralUnits));

@@ -88,26 +88,18 @@ namespace MechStorm.Battle
 
             var attackerUnit = CurrentCombatUnit;
             var sequence = ++_actionSequence;
-            if (_unitRegistry.GetFaction(attackerUnit) == _unitRegistry.GetFaction(targetUnit))
+            var failureReason = GetBasicAttackFailureReason(attackerUnit, targetUnit);
+            if (failureReason != BattleActionFailureReason.None)
             {
                 var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
-                    BattleActionFailureReason.SameFactionTarget);
-                return RecordAction(result, targetUnitId: targetUnit.UnitId);
-            }
-
-            if (targetUnit.IsDead())
-            {
-                var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
-                    BattleActionFailureReason.TargetAlreadyDead);
+                    failureReason);
                 return RecordAction(result, targetUnitId: targetUnit.UnitId);
             }
 
             var durabilityBefore = targetUnit.MechRuntime.CurrentDurability;
             if (!_attackResolver.TryAttack(attackerUnit, targetUnit))
             {
-                var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
-                    BattleActionFailureReason.TargetOutOfRange);
-                return RecordAction(result, targetUnitId: targetUnit.UnitId);
+                throw new InvalidOperationException("Validated basic attack could not be executed.");
             }
 
             var successResult = BattleActionResult.AttackSucceeded(sequence, attackerUnit, targetUnit,
@@ -154,6 +146,31 @@ namespace MechStorm.Battle
             return _unitRegistry.GetDeadUnits();
         }
 
+        public IReadOnlyList<Vector2Int> GetCurrentCombatUnitReachablePositions()
+        {
+            return _movementResolver.GetReachablePositions(CurrentCombatUnit);
+        }
+
+        public IReadOnlyList<CombatUnit> GetCurrentCombatUnitBasicAttackTargets()
+        {
+            var attackTargets = new List<CombatUnit>();
+            var attackerUnit = CurrentCombatUnit;
+            foreach (var targetUnit in CombatUnits)
+            {
+                if (GetBasicAttackFailureReason(attackerUnit, targetUnit) == BattleActionFailureReason.None)
+                {
+                    attackTargets.Add(targetUnit);
+                }
+            }
+
+            return attackTargets;
+        }
+
+        public IReadOnlyList<Vector2Int> GetCurrentCombatUnitBasicAttackPositions()
+        {
+            return _attackResolver.GetPositionsInRange(CurrentCombatUnit);
+        }
+
         public bool TryGetAliveCombatUnitAt(Vector2Int position, out CombatUnit combatUnit)
         {
             ValidateGridPosition(position, nameof(position));
@@ -185,6 +202,23 @@ namespace MechStorm.Battle
         {
             _actionLogs.Add(new BattleActionLog(result, result.ActorUnit.UnitId, targetUnitId, nextUnitId));
             return result;
+        }
+
+        private BattleActionFailureReason GetBasicAttackFailureReason(CombatUnit attackerUnit, CombatUnit targetUnit)
+        {
+            if (_unitRegistry.GetFaction(attackerUnit) == _unitRegistry.GetFaction(targetUnit))
+            {
+                return BattleActionFailureReason.SameFactionTarget;
+            }
+
+            if (targetUnit.IsDead())
+            {
+                return BattleActionFailureReason.TargetAlreadyDead;
+            }
+
+            return _attackResolver.IsPositionInRange(attackerUnit, targetUnit.Position)
+                ? BattleActionFailureReason.None
+                : BattleActionFailureReason.TargetOutOfRange;
         }
 
         private void ValidateUnitPositions(IReadOnlyList<CombatUnit> units, string parameterName)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using MechStorm.Battle;
 using MechStorm.Battle.Actions;
 using MechStorm.Battle.Data;
+using MechStorm.Battle.Diagnostics;
 using MechStorm.Battle.Foundation;
 using MechStorm.Battle.Units;
 using NUnit.Framework;
@@ -128,6 +129,80 @@ namespace MechStorm.Battle.Tests
             Assert.AreSame(playerUnit, result.ActorUnit);
             Assert.IsEmpty(result.ChangeTypes);
             Assert.AreEqual(new Vector2Int(1, 1), playerUnit.Position);
+        }
+
+        [Test]
+        public void GetCurrentCombatUnitReachablePositions_ReturnsOccupancyAwarePositions()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(0, 1), moveRange: 4);
+            var blockingUnit = CreateCombatUnit(2, new Vector2Int(1, 1));
+            var session = CreateBattleSession(playerUnit, blockingUnit);
+
+            var positions = session.GetCurrentCombatUnitReachablePositions();
+
+            CollectionAssert.Contains(positions, playerUnit.Position);
+            CollectionAssert.DoesNotContain(positions, blockingUnit.Position);
+            CollectionAssert.Contains(positions, new Vector2Int(2, 1));
+        }
+
+        [Test]
+        public void GetCurrentCombatUnitBasicAttackPositions_ReturnsConfiguredRangeWithinGrid()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(0, 0),
+                minAttackRange: 2, maxAttackRange: 3);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(4, 4));
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+
+            var positions = session.GetCurrentCombatUnitBasicAttackPositions();
+
+            Assert.AreEqual(7, positions.Count);
+            CollectionAssert.DoesNotContain(positions, new Vector2Int(1, 0));
+            CollectionAssert.Contains(positions, new Vector2Int(2, 0));
+            CollectionAssert.Contains(positions, new Vector2Int(1, 2));
+            CollectionAssert.Contains(positions, new Vector2Int(3, 0));
+            CollectionAssert.DoesNotContain(positions, new Vector2Int(4, 0));
+        }
+
+        [Test]
+        public void GetCurrentCombatUnitBasicAttackTargets_FiltersFactionDeathAndRange()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(0, 0),
+                minAttackRange: 2, maxAttackRange: 3);
+            var alliedUnit = CreateCombatUnit(2, new Vector2Int(2, 0));
+            var nearEnemy = CreateCombatUnit(3, new Vector2Int(1, 0));
+            var validEnemy = CreateCombatUnit(4, new Vector2Int(1, 1));
+            var deadEnemy = CreateCombatUnit(5, new Vector2Int(0, 2));
+            var farEnemy = CreateCombatUnit(6, new Vector2Int(4, 0));
+            var neutralUnit = CreateCombatUnit(7, new Vector2Int(0, 3));
+            deadEnemy.MechRuntime.TakeDamage(deadEnemy.Mech.MaxDurability);
+            var session = new BattleSession(
+                5,
+                5,
+                new[] { playerUnit, alliedUnit },
+                new[] { nearEnemy, validEnemy, deadEnemy, farEnemy },
+                new[] { neutralUnit });
+
+            var targets = session.GetCurrentCombatUnitBasicAttackTargets();
+
+            CollectionAssert.AreEqual(new[] { validEnemy, neutralUnit }, targets);
+        }
+
+        [Test]
+        public void CurrentCombatUnitQueries_DoNotMutateBattleState()
+        {
+            var playerUnit = CreateCombatUnit(1, new Vector2Int(0, 0), moveRange: 4,
+                minAttackRange: 2, maxAttackRange: 3);
+            var enemyUnit = CreateCombatUnit(2, new Vector2Int(2, 0));
+            var session = CreateBattleSession(playerUnit, enemyUnit);
+            var jsonBefore = BattleDebugJsonSerializer.Serialize(session.CreateSnapshot(), session.ActionLogs);
+
+            session.GetCurrentCombatUnitReachablePositions();
+            session.GetCurrentCombatUnitBasicAttackPositions();
+            session.GetCurrentCombatUnitBasicAttackTargets();
+
+            var jsonAfter = BattleDebugJsonSerializer.Serialize(session.CreateSnapshot(), session.ActionLogs);
+            Assert.AreEqual(jsonBefore, jsonAfter);
+            Assert.IsEmpty(session.ActionLogs);
         }
 
         [Test]

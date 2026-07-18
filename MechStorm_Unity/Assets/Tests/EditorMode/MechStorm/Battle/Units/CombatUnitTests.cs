@@ -265,6 +265,17 @@ namespace MechStorm.Battle.Tests.Units
             Assert.Throws<ArgumentNullException>(() => resolver.TryAttack(unit, null));
         }
 
+        [Test]
+        public void IsPositionInRange_WithInvalidInput_ReturnsFalseOrThrows()
+        {
+            var resolver = new AttackResolver(new SquareGrid(5, 5));
+            var unit = CreateCombatUnit(1, 25, 100, new Vector2Int(1, 1));
+
+            Assert.IsFalse(resolver.IsPositionInRange(unit, new Vector2Int(-1, 1)));
+            Assert.Throws<ArgumentNullException>(() =>
+                resolver.IsPositionInRange(null, new Vector2Int(1, 1)));
+        }
+
         private static CombatUnit CreateCombatUnit(int unitId, int attack, int currentDurability,
             Vector2Int position, int minRange = 1, int maxRange = 1)
         {

@@ -99,6 +99,16 @@ namespace MechStorm.Battle.Tests.Rules
         }
 
         [Test]
+        public void GetReachablePositions_WithInvalidUnit_Throws()
+        {
+            var resolver = new MovementResolver(new SquareGrid(5, 5));
+            var outsideUnit = CreateCombatUnit(3, new Vector2Int(-1, 1));
+
+            Assert.Throws<ArgumentNullException>(() => resolver.GetReachablePositions(null));
+            Assert.Throws<ArgumentOutOfRangeException>(() => resolver.GetReachablePositions(outsideUnit));
+        }
+
+        [Test]
         public void Constructor_Throws_WhenGridIsNull()
         {
             Assert.Throws<ArgumentNullException>(() => new MovementResolver(null));

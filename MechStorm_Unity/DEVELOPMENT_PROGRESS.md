@@ -3,8 +3,8 @@
 ## 当前阶段
 
 - 当前里程碑：P1 / Sprint 3
-- 当前任务：Task 3.4 范围与候选目标查询
-- 当前状态：Sprint 3 进行中；Task 3.3 已完成，Task 3.4 待开始
+- 当前任务：Task 3.5 移动与普通攻击范围高亮
+- 当前状态：Sprint 3 进行中；Task 3.4 已完成，Task 3.5 待开始
 - 最后更新：2026-07-18
 
 ## 状态约定
@@ -193,11 +193,11 @@
   - 验证方式：`CombatUnitTests` 与 `BattleSessionTests` 覆盖攻击配置不变量、最小 / 最大射程边界、过近、过远、曼哈顿距离、成功伤害和失败状态不变，并保留同阵营、死亡、未注册目标与致死伤害测试；纯 C# NUnit 隔离运行 112 / 112 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已手动验证无问题
   - 备注：新增不可变 `BasicAttackData`，`AttackResolver.TryAttack` 使用配置伤害和闭区间射程，范围失败统一为 `TargetOutOfRange`；调试 JSON 因失败原因契约变化升级到 Schema 2；不提前实现多挂载点、切换武器、弹药、冷却、命中率或完整 Luban 武器表
 
-- [ ] Task 3.4 范围与候选目标查询
-  - 状态：未开始
+- [x] Task 3.4 范围与候选目标查询
+  - 状态：已完成
   - 完成标准：Battle 可查询当前单位可移动格、普通攻击覆盖格和合法目标；查询不修改战斗状态；候选结果与最终行动校验一致
-  - 验证方式：EditMode 覆盖边界、阵营、死亡、占格和范围过滤，并验证查询前后 Snapshot 不变
-  - 备注：先用直接方法表达规则，不为单一调用方提前建立完整 `ITargetSelector` / `ITargetFilter`
+  - 验证方式：`BattleSessionTests`、`MovementResolverTests` 与 `CombatUnitTests` 覆盖边界、阵营、死亡、占格、范围过滤和无效输入契约，并通过 JSON 化 Snapshot 与 ActionLog 验证查询无副作用；纯 C# NUnit 隔离运行 118 / 118 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已在 Unity Test Runner 手动验证通过，本任务未修改表现层，不要求额外 Play Mode 验证
+  - 备注：`BattleSession` 作为统一查询入口，组合当前行动单位、单位注册表与规则服务；移动范围由 `MovementResolver` 计算，攻击覆盖格由 `AttackResolver` 计算，合法目标与最终攻击共享同阵营、死亡和射程校验；暂不建立完整 `ITargetSelector` / `ITargetFilter`
 
 - [ ] Task 3.5 移动与普通攻击范围高亮
   - 状态：未开始

@@ -4,7 +4,7 @@ namespace MechStorm.Battle.Actions
     {
         None,
         InvalidMoveTarget,
-        TargetNotAdjacent,
+        TargetOutOfRange,
         SameFactionTarget,
         TargetAlreadyDead,
         ActorCannotAct

@@ -139,12 +139,41 @@ namespace MechStorm.Battle.Tests.Spatial
         }
 
         [Test]
+        public void GetReachablePositions_ExcludesBlockedPositionAndDoesNotExpandThroughIt()
+        {
+            var grid = new SquareGrid(3, 1);
+            var blockedPosition = new Vector2Int(1, 0);
+
+            var positions = grid.GetReachablePositions(new Vector2Int(0, 0), 2,
+                position => position == blockedPosition);
+
+            Assert.AreEqual(1, positions.Count);
+            Assert.IsTrue(positions.Contains(new Vector2Int(0, 0)));
+            Assert.IsFalse(positions.Contains(blockedPosition));
+            Assert.IsFalse(positions.Contains(new Vector2Int(2, 0)));
+        }
+
+        [Test]
+        public void GetReachablePositions_IncludesTarget_WhenBlockedPositionCanBeDetoured()
+        {
+            var grid = new SquareGrid(3, 3);
+            var blockedPosition = new Vector2Int(1, 1);
+
+            var positions = grid.GetReachablePositions(new Vector2Int(0, 1), 4,
+                position => position == blockedPosition);
+
+            Assert.IsFalse(positions.Contains(blockedPosition));
+            Assert.IsTrue(positions.Contains(new Vector2Int(2, 1)));
+        }
+
+        [Test]
         public void GetReachablePositions_ThrowsException_WhenInputIsInvalid()
         {
             var grid = new SquareGrid(10, 10);
 
             Assert.Throws<System.ArgumentOutOfRangeException>(() => grid.GetReachablePositions(new Vector2Int(-1, 0), 1));
             Assert.Throws<System.ArgumentOutOfRangeException>(() => grid.GetReachablePositions(new Vector2Int(0, 0), -1));
+            Assert.Throws<System.ArgumentNullException>(() => grid.GetReachablePositions(new Vector2Int(0, 0), 1, null));
         }
     }
 }

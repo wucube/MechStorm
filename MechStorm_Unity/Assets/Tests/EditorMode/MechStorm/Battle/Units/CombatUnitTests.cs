@@ -1,4 +1,5 @@
 using System;
+using MechStorm.Battle.Data;
 using MechStorm.Battle.Foundation;
 using MechStorm.Battle.Rules;
 using MechStorm.Battle.Spatial;
@@ -30,13 +31,31 @@ namespace MechStorm.Battle.Tests.Units
         [Test]
         public void MechData_StoresStaticValues()
         {
-            var mech = new MechData(101, "Test Mech", 25, 120, 5);
+            var basicAttack = new BasicAttackData(25, 1, 3);
+            var mech = new MechData(101, "Test Mech", basicAttack, 120, 5);
 
             Assert.AreEqual(101, mech.Id);
             Assert.AreEqual("Test Mech", mech.Name);
-            Assert.AreEqual(25, mech.Attack);
+            Assert.AreSame(basicAttack, mech.BasicAttack);
+            Assert.AreEqual(25, mech.BasicAttack.Damage);
+            Assert.AreEqual(1, mech.BasicAttack.MinRange);
+            Assert.AreEqual(3, mech.BasicAttack.MaxRange);
             Assert.AreEqual(120, mech.MaxDurability);
             Assert.AreEqual(5, mech.MoveRange);
+        }
+
+        [Test]
+        public void BasicAttackData_WithInvalidValues_Throws()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => new BasicAttackData(-1, 1, 1));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new BasicAttackData(10, 0, 1));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new BasicAttackData(10, 3, 2));
+        }
+
+        [Test]
+        public void MechData_WithNullBasicAttack_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() => new MechData(101, "Test Mech", null, 120, 5));
         }
 
         [Test]
@@ -94,7 +113,7 @@ namespace MechStorm.Battle.Tests.Units
         {
             var pilot = new PilotData(1, "Test Pilot", 10);
             var pilotRuntime = new PilotRuntime(6);
-            var mech = new MechData(101, "Test Mech", 25, 120, 5);
+            var mech = new MechData(101, "Test Mech", new BasicAttackData(25, 1, 1), 120, 5);
             var mechRuntime = new MechRuntime(80);
             var position = new Vector2Int(2, 3);
 
@@ -113,7 +132,7 @@ namespace MechStorm.Battle.Tests.Units
         {
             var factory = new CombatUnitFactory();
             var pilot = new PilotData(1, "Test Pilot", 10);
-            var mech = new MechData(101, "Test Mech", 25, 120, 5);
+            var mech = new MechData(101, "Test Mech", new BasicAttackData(25, 1, 1), 120, 5);
             var position = new Vector2Int(2, 3);
 
             var unit = factory.Create(7, pilot, mech, position);
@@ -129,7 +148,7 @@ namespace MechStorm.Battle.Tests.Units
         {
             var factory = new CombatUnitFactory();
             var pilot = new PilotData(1, "Test Pilot", 10);
-            var mech = new MechData(101, "Test Mech", 25, 120, 5);
+            var mech = new MechData(101, "Test Mech", new BasicAttackData(25, 1, 1), 120, 5);
 
             var unit = factory.Create(7, pilot, mech, new Vector2Int(2, 3));
 
@@ -142,7 +161,7 @@ namespace MechStorm.Battle.Tests.Units
         {
             var factory = new CombatUnitFactory();
             var pilot = new PilotData(1, "Test Pilot", 10);
-            var mech = new MechData(101, "Test Mech", 25, 120, 5);
+            var mech = new MechData(101, "Test Mech", new BasicAttackData(25, 1, 1), 120, 5);
 
             var firstUnit = factory.Create(1, pilot, mech, new Vector2Int(2, 3));
             var secondUnit = factory.Create(2, pilot, mech, new Vector2Int(3, 3));
@@ -162,7 +181,7 @@ namespace MechStorm.Battle.Tests.Units
         {
             var pilot = new PilotData(1, "Test Pilot", 10);
             var pilotRuntime = new PilotRuntime(6);
-            var mech = new MechData(101, "Test Mech", 25, 120, 5);
+            var mech = new MechData(101, "Test Mech", new BasicAttackData(25, 1, 1), 120, 5);
             var mechRuntime = new MechRuntime(80);
 
             Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -174,7 +193,7 @@ namespace MechStorm.Battle.Tests.Units
         {
             var pilot = new PilotData(1, "Test Pilot", 10);
             var pilotRuntime = new PilotRuntime(6);
-            var mech = new MechData(101, "Test Mech", 25, 120, 5);
+            var mech = new MechData(101, "Test Mech", new BasicAttackData(25, 1, 1), 120, 5);
             var mechRuntime = new MechRuntime(80);
             var unit = new CombatUnit(1, pilot, pilotRuntime, mech, mechRuntime, new Vector2Int(2, 3));
 
@@ -184,62 +203,85 @@ namespace MechStorm.Battle.Tests.Units
         }
 
         [Test]
-        public void Attack_ReducesTargetDurabilityWhenTargetIsAdjacent()
+        public void TryAttack_ReducesTargetDurabilityWhenTargetIsInRange()
         {
             var grid = new SquareGrid(5, 5);
             var resolver = new AttackResolver(grid);
             var attacker = CreateCombatUnit(1, 25, 100, new Vector2Int(1, 1));
             var target = CreateCombatUnit(2, 10, 80, new Vector2Int(2, 1));
 
-            resolver.Attack(attacker, target);
+            var attacked = resolver.TryAttack(attacker, target);
 
+            Assert.IsTrue(attacked);
             Assert.AreEqual(55, target.MechRuntime.CurrentDurability);
             Assert.IsFalse(target.MechRuntime.IsDestroyed);
         }
 
         [Test]
-        public void Attack_ClampsTargetDurabilityToZero()
+        public void TryAttack_ClampsTargetDurabilityToZero()
         {
             var grid = new SquareGrid(5, 5);
             var resolver = new AttackResolver(grid);
             var attacker = CreateCombatUnit(1, 50, 100, new Vector2Int(1, 1));
             var target = CreateCombatUnit(2, 10, 30, new Vector2Int(2, 1));
 
-            resolver.Attack(attacker, target);
+            var attacked = resolver.TryAttack(attacker, target);
 
+            Assert.IsTrue(attacked);
             Assert.AreEqual(0, target.MechRuntime.CurrentDurability);
             Assert.IsTrue(target.MechRuntime.IsDestroyed);
         }
 
-        [Test]
-        public void Attack_WithNonAdjacentTarget_ThrowsAndDoesNotDamageTarget()
+        [TestCase(1, false)]
+        [TestCase(2, true)]
+        [TestCase(3, true)]
+        [TestCase(4, false)]
+        public void TryAttack_UsesConfiguredMinimumAndMaximumRange(int distance, bool expectedSuccess)
         {
-            var grid = new SquareGrid(5, 5);
+            var grid = new SquareGrid(5, 1);
             var resolver = new AttackResolver(grid);
-            var attacker = CreateCombatUnit(1, 25, 100, new Vector2Int(1, 1));
-            var target = CreateCombatUnit(2, 10, 80, new Vector2Int(3, 1));
+            var attacker = CreateCombatUnit(1, 25, 100, new Vector2Int(0, 0), minRange: 2, maxRange: 3);
+            var target = CreateCombatUnit(2, 10, 80, new Vector2Int(distance, 0));
 
-            Assert.Throws<InvalidOperationException>(() => resolver.Attack(attacker, target));
-            Assert.AreEqual(80, target.MechRuntime.CurrentDurability);
+            var attacked = resolver.TryAttack(attacker, target);
+
+            Assert.AreEqual(expectedSuccess, attacked);
+            Assert.AreEqual(expectedSuccess ? 55 : 80, target.MechRuntime.CurrentDurability);
         }
 
         [Test]
-        public void Attack_WithSamePositionTarget_ThrowsAndDoesNotDamageTarget()
+        public void Constructor_WithNullGrid_Throws()
         {
-            var grid = new SquareGrid(5, 5);
-            var resolver = new AttackResolver(grid);
-            var attacker = CreateCombatUnit(1, 25, 100, new Vector2Int(1, 1));
-            var target = CreateCombatUnit(2, 10, 80, new Vector2Int(1, 1));
-
-            Assert.Throws<InvalidOperationException>(() => resolver.Attack(attacker, target));
-            Assert.AreEqual(80, target.MechRuntime.CurrentDurability);
+            Assert.Throws<ArgumentNullException>(() => new AttackResolver(null));
         }
 
-        private static CombatUnit CreateCombatUnit(int unitId, int attack, int currentDurability, Vector2Int position)
+        [Test]
+        public void TryAttack_WithNullUnit_Throws()
+        {
+            var resolver = new AttackResolver(new SquareGrid(5, 5));
+            var unit = CreateCombatUnit(1, 25, 100, new Vector2Int(1, 1));
+
+            Assert.Throws<ArgumentNullException>(() => resolver.TryAttack(null, unit));
+            Assert.Throws<ArgumentNullException>(() => resolver.TryAttack(unit, null));
+        }
+
+        [Test]
+        public void IsPositionInRange_WithInvalidInput_ReturnsFalseOrThrows()
+        {
+            var resolver = new AttackResolver(new SquareGrid(5, 5));
+            var unit = CreateCombatUnit(1, 25, 100, new Vector2Int(1, 1));
+
+            Assert.IsFalse(resolver.IsPositionInRange(unit, new Vector2Int(-1, 1)));
+            Assert.Throws<ArgumentNullException>(() =>
+                resolver.IsPositionInRange(null, new Vector2Int(1, 1)));
+        }
+
+        private static CombatUnit CreateCombatUnit(int unitId, int attack, int currentDurability,
+            Vector2Int position, int minRange = 1, int maxRange = 1)
         {
             var pilot = new PilotData(1, "Test Pilot", 10);
             var pilotRuntime = new PilotRuntime(6);
-            var mech = new MechData(101, "Test Mech", attack, 120, 5);
+            var mech = new MechData(101, "Test Mech", new BasicAttackData(attack, minRange, maxRange), 120, 5);
             var mechRuntime = new MechRuntime(currentDurability);
 
             return new CombatUnit(unitId, pilot, pilotRuntime, mech, mechRuntime, position);

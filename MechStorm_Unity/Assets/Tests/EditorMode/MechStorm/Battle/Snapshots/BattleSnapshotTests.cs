@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MechStorm.Battle.Actions;
+using MechStorm.Battle.Data;
 using MechStorm.Battle.Diagnostics;
 using MechStorm.Battle.Foundation;
 using MechStorm.Battle.Snapshots;
@@ -110,16 +111,20 @@ namespace MechStorm.Battle.Tests.Snapshots
             var snapshot = new BattleSnapshot(5, 4, 1, CombatFaction.TeamA, 1, unitSnapshots);
             var result = BattleActionResult.AttackSucceeded(1, actorUnit, targetUnit, 80, 55);
             var actionLog = new BattleActionLog(result, actorUnit.UnitId, targetUnitId: targetUnit.UnitId);
+            var failedResult = BattleActionResult.Failed(2, BattleActionType.Attack, actorUnit,
+                BattleActionFailureReason.TargetOutOfRange);
+            var failedActionLog = new BattleActionLog(failedResult, actorUnit.UnitId, targetUnitId: targetUnit.UnitId);
 
-            var json = BattleDebugJsonSerializer.Serialize(snapshot, new[] { actionLog });
+            var json = BattleDebugJsonSerializer.Serialize(snapshot, new[] { actionLog, failedActionLog });
 
-            StringAssert.Contains("\"schemaVersion\": 1", json);
+            StringAssert.Contains("\"schemaVersion\": 2", json);
             StringAssert.Contains("\"currentFaction\": \"TeamA\"", json);
             StringAssert.Contains("\"currentUnitId\": 1", json);
             StringAssert.Contains("\"x\": 1", json);
             StringAssert.Contains("\"actionType\": \"Attack\"", json);
             StringAssert.Contains("\"changeTypes\": [", json);
             StringAssert.Contains("\"DamageApplied\"", json);
+            StringAssert.Contains("\"failureReason\": \"TargetOutOfRange\"", json);
             StringAssert.Contains("\"targetUnitId\": 2", json);
             StringAssert.Contains("\"nextUnitId\": null", json);
         }
@@ -127,7 +132,7 @@ namespace MechStorm.Battle.Tests.Snapshots
         private static CombatUnit CreateCombatUnit(int id)
         {
             var pilot = new PilotData(id, $"Pilot {id}", 10);
-            var mech = new MechData(id, $"Mech {id}", 10, 100, 3);
+            var mech = new MechData(id, $"Mech {id}", new BasicAttackData(10, 1, 1), 100, 3);
             var factory = new CombatUnitFactory();
 
             return factory.Create(id, pilot, mech, new Vector2Int(id, 0));

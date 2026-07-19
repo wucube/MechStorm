@@ -59,6 +59,11 @@ namespace MechStorm.Battle.Spatial
 
         public IReadOnlyList<Vector2Int> GetReachablePositions(Vector2Int start, int range)
         {
+            return GetReachablePositions(start, range, _ => false);
+        }
+
+        public IReadOnlyList<Vector2Int> GetReachablePositions(Vector2Int start, int range, Func<Vector2Int, bool> isPositionBlocked)
+        {
             if (!IsInside(start))
             {
                 throw new ArgumentOutOfRangeException(nameof(start), start, "Start position must be inside the grid.");
@@ -67,6 +72,11 @@ namespace MechStorm.Battle.Spatial
             if (range < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(range), range, "Range must be non-negative.");
+            }
+
+            if (isPositionBlocked == null)
+            {
+                throw new ArgumentNullException(nameof(isPositionBlocked));
             }
             
             // BFS 队列保存待扩展的格子；Queue 先进先出，保证先处理近距离格子。
@@ -96,6 +106,11 @@ namespace MechStorm.Battle.Spatial
                     var neighbor = current + direction;
                     
                     if (!IsInside(neighbor))
+                    {
+                        continue;
+                    }
+
+                    if (isPositionBlocked(neighbor))
                     {
                         continue;
                     }

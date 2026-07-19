@@ -27,12 +27,13 @@ namespace MechStorm.Battle
             _actionLogs = new List<BattleActionLog>();
             _readOnlyActionLogs = _actionLogs.AsReadOnly();
             _squareGrid = new SquareGrid(boardWidth, boardHeight);
-            _movementResolver = new MovementResolver(_squareGrid);
-            _attackResolver = new AttackResolver(_squareGrid);
             _unitRegistry = new CombatUnitRegistry(teamAUnits, teamBUnits, neutralUnits);
+            _movementResolver = new MovementResolver(_squareGrid, IsPositionOccupied);
+            _attackResolver = new AttackResolver(_squareGrid);
             ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.TeamA), nameof(teamAUnits));
             ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.TeamB), nameof(teamBUnits));
             ValidateUnitPositions(_unitRegistry.GetFactionUnits(CombatFaction.Neutral), nameof(neutralUnits));
+            ValidateAliveUnitPositionsDoNotOverlap();
             _turnCoordinator = new TurnCoordinator(_unitRegistry);
         }
 
@@ -87,30 +88,18 @@ namespace MechStorm.Battle
 
             var attackerUnit = CurrentCombatUnit;
             var sequence = ++_actionSequence;
-            if (_unitRegistry.GetFaction(attackerUnit) == _unitRegistry.GetFaction(targetUnit))
+            var failureReason = GetBasicAttackFailureReason(attackerUnit, targetUnit);
+            if (failureReason != BattleActionFailureReason.None)
             {
                 var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
-                    BattleActionFailureReason.SameFactionTarget);
-                return RecordAction(result, targetUnitId: targetUnit.UnitId);
-            }
-
-            if (targetUnit.IsDead())
-            {
-                var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
-                    BattleActionFailureReason.TargetAlreadyDead);
+                    failureReason);
                 return RecordAction(result, targetUnitId: targetUnit.UnitId);
             }
 
             var durabilityBefore = targetUnit.MechRuntime.CurrentDurability;
-            try
+            if (!_attackResolver.TryAttack(attackerUnit, targetUnit))
             {
-                _attackResolver.Attack(attackerUnit, targetUnit);
-            }
-            catch (InvalidOperationException)
-            {
-                var result = BattleActionResult.Failed(sequence, BattleActionType.Attack, attackerUnit,
-                    BattleActionFailureReason.TargetNotAdjacent);
-                return RecordAction(result, targetUnitId: targetUnit.UnitId);
+                throw new InvalidOperationException("Validated basic attack could not be executed.");
             }
 
             var successResult = BattleActionResult.AttackSucceeded(sequence, attackerUnit, targetUnit,
@@ -157,6 +146,53 @@ namespace MechStorm.Battle
             return _unitRegistry.GetDeadUnits();
         }
 
+        public IReadOnlyList<Vector2Int> GetCurrentCombatUnitReachablePositions()
+        {
+            return _movementResolver.GetReachablePositions(CurrentCombatUnit);
+        }
+
+        public IReadOnlyList<CombatUnit> GetCurrentCombatUnitBasicAttackTargets()
+        {
+            var attackTargets = new List<CombatUnit>();
+            var attackerUnit = CurrentCombatUnit;
+            foreach (var targetUnit in CombatUnits)
+            {
+                if (GetBasicAttackFailureReason(attackerUnit, targetUnit) == BattleActionFailureReason.None)
+                {
+                    attackTargets.Add(targetUnit);
+                }
+            }
+
+            return attackTargets;
+        }
+
+        public IReadOnlyList<Vector2Int> GetCurrentCombatUnitBasicAttackPositions()
+        {
+            return _attackResolver.GetPositionsInRange(CurrentCombatUnit);
+        }
+
+        public bool TryGetAliveCombatUnitAt(Vector2Int position, out CombatUnit combatUnit)
+        {
+            ValidateGridPosition(position, nameof(position));
+
+            foreach (var unit in CombatUnits)
+            {
+                if (unit.IsAlive() && unit.Position == position)
+                {
+                    combatUnit = unit;
+                    return true;
+                }
+            }
+
+            combatUnit = null;
+            return false;
+        }
+
+        public bool IsPositionOccupied(Vector2Int position)
+        {
+            return TryGetAliveCombatUnitAt(position, out _);
+        }
+
         public bool AreFactionUnitsDead(CombatFaction faction)
         {
             return _unitRegistry.AreFactionUnitsDead(faction);
@@ -168,15 +204,49 @@ namespace MechStorm.Battle
             return result;
         }
 
+        private BattleActionFailureReason GetBasicAttackFailureReason(CombatUnit attackerUnit, CombatUnit targetUnit)
+        {
+            if (_unitRegistry.GetFaction(attackerUnit) == _unitRegistry.GetFaction(targetUnit))
+            {
+                return BattleActionFailureReason.SameFactionTarget;
+            }
+
+            if (targetUnit.IsDead())
+            {
+                return BattleActionFailureReason.TargetAlreadyDead;
+            }
+
+            return _attackResolver.IsPositionInRange(attackerUnit, targetUnit.Position)
+                ? BattleActionFailureReason.None
+                : BattleActionFailureReason.TargetOutOfRange;
+        }
+
         private void ValidateUnitPositions(IReadOnlyList<CombatUnit> units, string parameterName)
         {
             foreach (var unit in units)
             {
-                if (!_squareGrid.IsInside(unit.Position))
+                ValidateGridPosition(unit.Position, parameterName);
+            }
+        }
+
+        private void ValidateAliveUnitPositionsDoNotOverlap()
+        {
+            var occupiedPositions = new HashSet<Vector2Int>();
+            foreach (var unit in CombatUnits)
+            {
+                if (unit.IsAlive() && !occupiedPositions.Add(unit.Position))
                 {
-                    throw new ArgumentOutOfRangeException(parameterName, unit.Position,
-                        "Combat unit position must be inside the battle grid.");
+                    throw new ArgumentException("Alive combat units cannot share the same grid position.");
                 }
+            }
+        }
+
+        private void ValidateGridPosition(Vector2Int position, string parameterName)
+        {
+            if (!_squareGrid.IsInside(position))
+            {
+                throw new ArgumentOutOfRangeException(parameterName, position,
+                    "Grid position must be inside the battle grid.");
             }
         }
     }

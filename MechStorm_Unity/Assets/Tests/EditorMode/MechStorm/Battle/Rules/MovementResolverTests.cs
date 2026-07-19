@@ -1,4 +1,5 @@
 using System;
+using MechStorm.Battle.Data;
 using MechStorm.Battle.Foundation;
 using MechStorm.Battle.Rules;
 using MechStorm.Battle.Spatial;
@@ -61,6 +62,33 @@ namespace MechStorm.Battle.Tests.Rules
         }
 
         [Test]
+        public void TryMoveTo_DoesNotMoveThroughBlockedPosition()
+        {
+            var blockedPosition = new Vector2Int(2, 1);
+            var resolver = new MovementResolver(new SquareGrid(5, 5), position => position == blockedPosition);
+            var startPosition = new Vector2Int(1, 1);
+            var unit = CreateCombatUnit(2, startPosition);
+
+            var moved = resolver.TryMoveTo(unit, new Vector2Int(3, 1));
+
+            Assert.IsFalse(moved);
+            Assert.AreEqual(startPosition, unit.Position);
+        }
+
+        [Test]
+        public void TryMoveTo_CanDetourAroundBlockedPosition()
+        {
+            var blockedPosition = new Vector2Int(2, 2);
+            var resolver = new MovementResolver(new SquareGrid(5, 5), position => position == blockedPosition);
+            var unit = CreateCombatUnit(4, new Vector2Int(1, 2));
+
+            var moved = resolver.TryMoveTo(unit, new Vector2Int(3, 2));
+
+            Assert.IsTrue(moved);
+            Assert.AreEqual(new Vector2Int(3, 2), unit.Position);
+        }
+
+        [Test]
         public void CanMoveTo_ReturnsFalse_WhenUnitIsNull()
         {
             var resolver = new MovementResolver(new SquareGrid(5, 5));
@@ -71,16 +99,32 @@ namespace MechStorm.Battle.Tests.Rules
         }
 
         [Test]
+        public void GetReachablePositions_WithInvalidUnit_Throws()
+        {
+            var resolver = new MovementResolver(new SquareGrid(5, 5));
+            var outsideUnit = CreateCombatUnit(3, new Vector2Int(-1, 1));
+
+            Assert.Throws<ArgumentNullException>(() => resolver.GetReachablePositions(null));
+            Assert.Throws<ArgumentOutOfRangeException>(() => resolver.GetReachablePositions(outsideUnit));
+        }
+
+        [Test]
         public void Constructor_Throws_WhenGridIsNull()
         {
             Assert.Throws<ArgumentNullException>(() => new MovementResolver(null));
+        }
+
+        [Test]
+        public void Constructor_Throws_WhenBlockedPositionPredicateIsNull()
+        {
+            Assert.Throws<ArgumentNullException>(() => new MovementResolver(new SquareGrid(5, 5), null));
         }
 
         private static CombatUnit CreateCombatUnit(int moveRange, Vector2Int position)
         {
             var pilot = new PilotData(1, "Test Pilot", 10);
             var pilotRuntime = new PilotRuntime(6);
-            var mech = new MechData(101, "Test Mech", 25, 120, moveRange);
+            var mech = new MechData(101, "Test Mech", new BasicAttackData(25, 1, 1), 120, moveRange);
             var mechRuntime = new MechRuntime(80);
 
             return new CombatUnit(1, pilot, pilotRuntime, mech, mechRuntime, position);

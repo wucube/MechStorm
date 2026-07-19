@@ -398,12 +398,19 @@ Unity / Server / Test Runner
 
 当前阶段不做完整编辑器。
 
-优先建设：
+当前执行已进入 P1 / Sprint 3。Sprint 3～5 只实现范围 / 目标查询、高亮、技能结果日志、地形 Cost 和路径的最小可观察性；下列完整 Report、Breakdown、Schema 和面板仍属于后续工具链基建，不应为了近期机制验收提前搭建。
+
+已完成的近期底座：
 
 ```text
 BattleActionResult
 BattleSnapshot
 BattleActionLog
+```
+
+工具链 P4 再优先建设：
+
+```text
 TargetValidationReport
 DamageBreakdown
 StateChangeLog

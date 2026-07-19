@@ -2,10 +2,10 @@
 
 ## 当前阶段
 
-- 当前里程碑：P1 / Sprint 3
-- 当前任务：Sprint 3 空间、攻击范围与技能雏形
-- 当前状态：待开始
-- 最后更新：2026-07-16
+- 当前里程碑：P1 / Sprint 4
+- 当前任务：Task 4.1 最小 `AbilityDefinition` 与 `TargetRule`
+- 当前状态：Sprint 3 已完成；Sprint 4 待开始
+- 最后更新：2026-07-19
 
 ## 状态约定
 
@@ -119,7 +119,7 @@
 - `WorldToGrid` 会把世界点转换为其所在格子；落在边界上的点按 `Mathf.FloorToInt` 规则归入右侧或上侧格子。
 - `CombatUnit.Position` 暂时保持二维格子坐标；`CombatUnitVisual` 通过额外高度偏移处理 Cube 或后续模型的离地高度。
 
-## P1 / Sprint 2~3：核心机制深化
+## P1 / Sprint 2~8：核心机制深化
 
 - [x] Sprint 2：实体与战斗深化
   - 状态：已完成
@@ -169,34 +169,159 @@
   - 验证方式：Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 编译通过；开发者已确认 Play Mode、EditMode 单元测试和 JSON 文件导出均正常
   - 备注：已完成稳定且大于零的显式 `UnitId`、Registry 唯一性和按 ID 查询、Session 快照与行动日志、版本化 JSON 序列化、Inspector 导出入口及防御性复制测试；Snapshot 记录创建时的完整战场数据，ActionLog 记录每次已提交操作的结果和相关变化。Sprint 2 不实现动态召唤、完整录像、悔棋、正式回放 UI 或权威回放系统
 
-- [ ] Sprint 3：空间、攻击范围与技能雏形
-  - 状态：未开始
-  - 总目标：在普通移动 / 普通攻击稳定后，再引入攻击范围、武器范围、地形 / 占格规则与最小主动技能
-  - 备注：技能可以比 Buff 早引入；Buff / Modifier / Trigger 不在 Sprint 3 初期展开。若首个真实主动召唤技能进入开发，则在目标规则、占格规则和最小技能流程稳定后，将动态召唤作为独立垂直切片实现；没有实际召唤技能时继续后置。若技能、多目标或复杂伤害使 `BattleActionResult` 出现大量互斥可空字段，再将具体结果拆为移动、耐久、死亡和回合等有数据的变化对象，由 Result 只保留公共信息与有序变化列表。仅当移动、攻击或伤害流程出现参数过多、多个步骤共享并修改中间数据时，才引入最小 `MoveContext`、`AttackContext` 或 `DamageContext`；否则继续使用参数和局部变量，并将正式 Context 体系留到 P2
+- [x] Sprint 3：占格、攻击范围与目标规则
+  - 状态：已完成
+  - 总目标：建立统一的动态占格、可移动范围、普通攻击范围和候选目标查询，让 Battle 成为移动与攻击合法性的唯一事实来源，并提供最小范围高亮供 Play Mode 验收
+  - 完成标准：存活单位不能初始重叠、不能移动到或穿过其他存活单位；死亡单位释放占格；普通攻击使用显式最小 / 最大范围；Battle 可无副作用查询移动格、攻击格与合法目标；Presentation 只消费查询结果显示高亮
+  - 备注：继续使用等代价 BFS 和瞬移表现，不实现地形 Cost、Dijkstra、A*、路径动画、技能、Buff、Modifier、Trigger 或完整目标选择框架；只有出现第二个真实 Selector / Filter 使用方时才提取接口
 
-## P2 / Sprint 4~5：工程化与解耦
+- [x] Task 3.1 战场占格与位置查询
+  - 状态：已完成
+  - 完成标准：可查询指定格子的存活单位并判断是否被占用；战斗初始化拒绝存活单位位置重叠；死亡单位不再占格
+  - 验证方式：新增 `BattleOccupancyTests`，覆盖空格、三种阵营占格、初始存活单位重叠、死亡释放占格、死亡单位与存活单位共格及越界查询契约；纯 C# NUnit 隔离运行 8 / 8 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；Unity Test Runner 单元测试已由开发者手动验证通过
+  - 备注：`BattleSession` 新增 `TryGetAliveCombatUnitAt` 与 `IsPositionOccupied`；`SquareGrid` 继续只管理边界和拓扑，不保存单位；占格由存活单位当前位置动态计算，暂不提前引入三层 `SpatialManager`
+
+- [x] Task 3.2 占格感知的移动范围
+  - 状态：已完成
+  - 完成标准：当前单位自己的起点不算障碍；其他存活单位所在格不可停留且不能穿越；移动查询与最终移动校验使用同一套规则
+  - 验证方式：`SquareGridTests`、`MovementResolverTests` 与 `BattleOccupancyTests` 覆盖己方 / 敌方 / Neutral 阻挡、狭窄通道、可绕行路径、目标格占用、死亡单位放行、当前单位起点和失败后状态不变；纯 C# NUnit 隔离运行 102 / 102 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已确认 Task 3.2 验收无问题
+  - 备注：`SquareGrid` 的 BFS 新增动态阻挡谓词，`MovementResolver` 的查询和最终移动共同使用该谓词，`BattleSession` 注入存活单位占格事实；继续使用瞬移，不提前实现 A* 或路径动画
+
+- [x] Task 3.3 基础攻击配置与攻击范围
+  - 状态：已完成
+  - 完成标准：普通攻击由显式伤害、最小射程和最大射程描述；近战、远程和最小射程规则均可验证；失败原因从固定“非相邻”升级为通用“目标超出范围”
+  - 验证方式：`CombatUnitTests` 与 `BattleSessionTests` 覆盖攻击配置不变量、最小 / 最大射程边界、过近、过远、曼哈顿距离、成功伤害和失败状态不变，并保留同阵营、死亡、未注册目标与致死伤害测试；纯 C# NUnit 隔离运行 112 / 112 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已手动验证无问题
+  - 备注：新增不可变 `BasicAttackData`，`AttackResolver.TryAttack` 使用配置伤害和闭区间射程，范围失败统一为 `TargetOutOfRange`；调试 JSON 因失败原因契约变化升级到 Schema 2；不提前实现多挂载点、切换武器、弹药、冷却、命中率或完整 Luban 武器表
+
+- [x] Task 3.4 范围与候选目标查询
+  - 状态：已完成
+  - 完成标准：Battle 可查询当前单位可移动格、普通攻击覆盖格和合法目标；查询不修改战斗状态；候选结果与最终行动校验一致
+  - 验证方式：`BattleSessionTests`、`MovementResolverTests` 与 `CombatUnitTests` 覆盖边界、阵营、死亡、占格、范围过滤和无效输入契约，并通过 JSON 化 Snapshot 与 ActionLog 验证查询无副作用；纯 C# NUnit 隔离运行 118 / 118 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已在 Unity Test Runner 手动验证通过，本任务未修改表现层，不要求额外 Play Mode 验证
+  - 备注：`BattleSession` 作为统一查询入口，组合当前行动单位、单位注册表与规则服务；移动范围由 `MovementResolver` 计算，攻击覆盖格由 `AttackResolver` 计算，合法目标与最终攻击共享同阵营、死亡和射程校验；暂不建立完整 `ITargetSelector` / `ITargetFilter`
+
+- [x] Task 3.5 移动与普通攻击范围高亮
+  - 状态：已完成
+  - 完成标准：选择当前单位后可显示移动范围和普通攻击范围；合法目标有独立标识；移动、攻击、取消选择、结束行动和切换单位后清除旧高亮
+  - 验证方式：`BattleRangeHighlightMapperTests` 覆盖移动、攻击、范围重叠、合法目标优先级、重复位置、空输入、非法输入和查询集合不变；纯 C# NUnit 隔离运行 123 / 123 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已在 Unity Play Mode 验证范围、颜色、坐标、持续选中和手动结束行动流程
+  - 备注：Presentation 通过 `BattleSession` 权威查询生成高亮映射，`BattleRangeHighlighter` 缓存场景模板实例并使用 `MaterialPropertyBlock` 刷新颜色；移动或攻击后保持当前单位选中并刷新范围，结束行动或单位切换后恢复默认网格颜色；Test 场景与材质已随提交 `e8a8de6` 保存，不接正式 TEngine `BattleMainUI`
+
+- [ ] Sprint 4：最小主动技能闭环
+  - 状态：未开始
+  - 总目标：在 Sprint 3 的范围和目标规则上增加第一个可操作、可测试、可记录的单体主动技能
+  - 完成标准：技能具备定义、目标规则、固定 AP 消耗和直接伤害；AP 不足或目标非法时不消耗资源；成功结果能驱动表现并进入 ActionLog / Snapshot / JSON 调试导出
+  - 计划任务：
+    1. Task 4.1 最小 `AbilityDefinition` 与 `TargetRule`
+    2. Task 4.2 `AbilityResolver` 与单体直接伤害技能
+    3. Task 4.3 仅服务首个主动技能的固定 AP 消耗与回合恢复
+    4. Task 4.4 技能 Result、ActionLog、Snapshot 与 JSON 诊断
+    5. Task 4.5 临时技能按钮、目标选择和技能范围高亮
+  - 备注：首个技能不附带 Buff，不实现 Effect 列表、Modifier、Trigger、完整 GAS 或正式技能栏；Task 4.3 不建立通用 `BattleResource` / `SkillCost[]`，Sprint 7 再将固定 AP 规则迁移为通用资源管线；仅当首个真实技能明确需要召唤时，才在本 Sprint 验收后追加动态召唤垂直切片
+
+- [ ] Sprint 5：地形 Cost 与路径查询
+  - 状态：未开始
+  - 总目标：在占格与范围规则稳定后引入最小地形数据、加权移动范围和单目标最优路径
+  - 完成标准：格子具备地形类型、移动 Cost 和通行性；Dijkstra 计算全部可达格；A* 返回到指定目标的最低 Cost 路径；算法结果可通过纯 C# 测试和最小调试表现观察
+  - 计划任务：
+    1. Task 5.1 `GridCell`、`TerrainType`、`MovementCost` 与 `IsWalkable`
+    2. Task 5.2 Dijkstra 加权可达范围
+    3. Task 5.3 A* 单目标路径查询
+    4. Task 5.4 地形 Cost 与路径调试可视化
+  - 备注：BFS 继续负责等代价场景，Dijkstra 负责带权范围，A* 负责单目标路径；单位仍保持瞬移，不在本 Sprint 引入路径动画、`BattleDirector`、Elevation、Locomotion、ZOC 或 LOS
+
+- [ ] Sprint 6：机甲战斗深度
+  - 状态：未开始
+  - 总目标：补回原主计划中因实际 Sprint 2 改为战斗流程闭环而尚未实施的机甲核心机制
+  - 计划任务：
+    1. Task 6.1 角色与机兵的战斗属性合成边界
+    2. Task 6.2 躯干 / 左臂 / 右臂 / 腿多部位耐久与溢出转移
+    3. Task 6.3 最小可追踪来源的 GameplayTag 容器
+    4. Task 6.4 部位破坏状态及武器 / 移动力联动
+    5. Task 6.5 最小机型、武器数据与部位挂载关系
+  - 备注：不照搬原“简单 HashSet Tag”；Tag 的授予与移除必须能按来源撤销。完整 GameplayAttribute、Modifier、背包、元件和养成继续后置
+
+- [ ] Sprint 7：资源、命中与确定性结算
+  - 状态：未开始
+  - 总目标：完善 AP / PP 资源、技能成本、命中率、确定性 RNG 和最小伤害 / 部位命中管线
+  - 计划任务：
+    1. Task 7.1 将 Sprint 4 的固定 AP 规则迁移为通用 `BattleResource` 与 `SkillCost[]`
+    2. Task 7.2 通用 AP 回合回复、PP 固定额度与 PP 转 AP
+    3. Task 7.3 确定性 `BattleRNG`、种子 / 游标与命中率
+    4. Task 7.4 部位命中权重与最小伤害公式
+    5. Task 7.5 仅在流程参数和中间状态确实膨胀时引入最小 `AttackContext` / `DamageContext`
+  - 备注：所有概率、倍率和取整继续使用整数规则；不为未来 Hook 机械建立完整五步 Pipeline
+
+- [ ] Sprint 8：高级空间规则与最小 PVE AI
+  - 状态：未开始
+  - 总目标：在地形、命中和部位规则稳定后补齐移动能力、高低差、ZOC、LOS、掩体与最小敌方决策
+  - 计划任务：
+    1. Task 8.1 Elevation 与 Locomotion 通行规则
+    2. Task 8.2 ZOC 移动 Cost 增量
+    3. Task 8.3 LOS 阻挡、掩体命中惩罚与高地射程
+    4. Task 8.4 贪心 AI：靠近合法目标并执行可用攻击
+    5. Task 8.5 仅在第二种真实拓扑确定后评估 `IMapTopology`
+  - 备注：`IMapTopology` / Hex 不是承诺任务；若始终只有 Square，则继续保留具体实现
+
+## P2 / Sprint 9~12：工程化、状态与回溯
 
 - [x] TEngine 框架接入
   - 状态：已完成
   - 完成标准：项目已接入 TEngine 框架及依赖库
   - 验证方式：历史提交记录确认
-  - 备注：对应历史提交 `dbd147e 接入 TEngine 框架以及依赖库`；此项虽在原主计划 P2，但当前项目已前置完成
+  - 备注：对应历史提交 `dbd147e 接入 TEngine 框架以及依赖库`；后续 Sprint 9 只接正式战斗流程、UI 和资源边界，不重复执行框架接入
 
-- [ ] Sprint 4：TEngine 接入 + 架构重构
-  - 备注：PVP / 多阵营 / 敌方先手等规则应拆为 `InitiativeResolver` 生成初始行动顺序，`TurnStateMachine` 只负责按顺序推进；随机先手、速度先手、剧情指定先手都属于先手规则，不属于状态机本体
-- [ ] Sprint 5：数据与回溯
-  - 备注：正式进入 Command Replay、回放或 PVP 前增加独立 `BattleCommandLog`，记录 `Sequence`、操作类型、`ActorUnitId`、请求目标位置 / 单位、是否接受与失败原因，用于表达“玩家或 AI 想做什么”；`BattleActionLog` 继续记录核心“实际发生了什么”，`BattleSnapshot` 记录操作后的世界状态。本地点击、选择和未提交到 Session 的输入拒绝只属于开发期 `InputTrace`，不写入权威战斗日志
+- [ ] Sprint 9：正式战斗流程与部署
+  - 计划内容：TEngine Procedure 战斗流程、正式 `BattleMainUI`、BattlePreparation / Deployment、Presenter / View 边界、`BattleDirector` 表现时序与最小战斗配置入口
+  - 备注：随机先手、速度先手和剧情指定先手由独立 `InitiativeResolver` 生成行动顺序，不塞入 `TurnCoordinator`
 
-## P3 / Sprint 6+：扩展与商业化
+- [ ] Sprint 10：属性、状态、Modifier 与 Trigger
+  - 计划内容：`BattleAttributeSet`、来源可追踪的 `BattleStateRuntime`、回合时序调度、Attribute Modifier、必要 Trigger、眩晕 / 断腿 / DOT / 护盾 / 警戒验证样例
+  - 备注：Buff 以有生命周期的 State 表达，Modifier 只修改值，Trigger 只做扩展点，不替代移动、攻击和回合主流程
 
-- [ ] 背包词条、元件系统、天赋树、Utility AI、HybridCLR、YooAsset、状态透视仪、养成、录像
-  - 备注：天赋触发召唤不直接操作单位注册表，而是通过 Trigger / Ability 复用已建立的统一召唤入口；若此前没有主动召唤玩法，则在首个真实天赋召唤需求进入时补齐动态单位生命周期
+- [ ] Sprint 11：Luban 数据驱动与实体装配
+  - 计划内容：Pilot / Mech / Weapon / Ability / State / Modifier 配表、职业系统、角色专属资源、`MechFactory` 多对多装配、完整挂载点和配置校验
+  - 备注：先稳定 Runtime 和 Schema，再替换硬编码；编辑器只能生成数据，不能拥有另一套战斗规则
+
+- [ ] Sprint 12：Command、恢复与回放基础
+  - 计划内容：`BattleCommand` / `BattleCommandLog`、Command 与 ActionLog / Snapshot 的 Sequence 关联、局部恢复检查点、悔棋、续战存档、本地 Command Replay 与确定性校验
+  - 备注：本地点击、选择和未提交到 Session 的拒绝只属于开发期 `InputTrace`；Result Replay、分享回放、PVP 服务端、断线重连和观战继续保留为长期任务
+
+## P3 / Sprint 13+：扩展与商业化
+
+- [ ] 背包词条、元件系统、天赋树、Utility AI、追加攻击、行动配额、HybridCLR 热更新配置、YooAsset 正式资源流、状态透视仪、养成、分享录像与 PVP
+  - 备注：天赋触发召唤不直接操作单位注册表，而是通过 Trigger / Ability 复用统一召唤入口；若此前没有主动召唤玩法，则到首个真实需求出现时补齐动态单位生命周期
+
+## 长期 Backlog 与条件式任务
+
+- 动态召唤：首个真实召唤技能出现时，作为独立垂直切片插入，不固定占用某个 Sprint。
+- 完整 `IMapTopology` / Hex：只有第二种真实拓扑确定后才实施。
+- 正式地形美术、路径动画、移动插值、朝向和弹道导演：逻辑结果稳定且出现表现需求后实施。
+- 死亡单位表现注销与预制体回收：首次需要销毁或对象池回收单位表现时实施，统一清理 Collider、Visual、血条与选择状态映射，不纳入 Task 3.2。
+- 完整 Buff 叠层 / 刷新 / 驱散 / 免疫 / 光环、复杂 Modifier / Trigger 条件链：Sprint 10 状态主干验收后按真实玩法逐项进入。
+- 完整五步 `BattleResolver`、防御 / 暴击 / 条件增伤等伤害公式：Sprint 7 的最小确定性结算出现真实 Hook 和组合需求后再提取。
+- 三层 `SpatialManager`：地貌层、附着物层和占据层均出现真实独立数据后再从现有空间规则中提取，不为占格查询提前建立。
+- 追加攻击、反击、协力、行动配额、背包、元件、天赋、养成和 Utility AI：依赖 Attribute / State / Modifier / Trigger 与数据装配稳定。
+- Result Replay、分享回放、PVP 服务端、断线重连、观战和防作弊：Sprint 12 的 Command / Snapshot / 确定性基础完成后再排期。
+- Schema / Validator / Breakdown、沙盒预览、战斗内容编辑器与内容生产工业化：继续遵循 `BATTLE_EDITOR_TOOLING_STRATEGY.md` 的 P4～P6 路线，不纳入近期 Sprint 3～12 验收。
+
+## 旧规划审计与归属
+
+| 旧规划来源 | 尚未完成或已调整内容 | 当前归属 |
+|---|---|---|
+| 主计划旧 Sprint 2 | 属性合成、多部位、GameplayTag、部位破坏、机型与武器 | Sprint 6 |
+| 主计划旧 Sprint 2 | AP / PP、技能成本、命中率、确定性 RNG、部位命中与伤害管线 | Sprint 4 先做最小 AP；完整能力放 Sprint 7 |
+| 主计划旧 Sprint 3 | Cost Matrix、A*、TerrainType、Elevation、Locomotion、ZOC、LOS、掩体 | Terrain Cost / Dijkstra / A* 放 Sprint 5；Elevation / Locomotion / ZOC / LOS / 掩体放 Sprint 8 |
+| 主计划 P1 AI | 贪心 AI 与长期 Utility AI | 最小贪心 AI 放 Sprint 8；Utility AI 保留 Sprint 13+ |
+| 主计划旧 Sprint 4～5 | 正式 TEngine 战斗流程、Presenter、State / Attribute / Modifier / Trigger、Luban、装配、Command、悔棋、续战和回放 | 已完成的框架 / asmdef 不重复；其余拆入 Sprint 9～12 |
+| 主计划旧 Sprint 6+ | 背包、元件、天赋、追加攻击、行动配额、养成、热更新资源流、分享录像和 PVP | Sprint 13+ 或满足前置条件后再单独排期 |
+| 编辑器与参考分析 | TargetValidationReport、Breakdown、Schema、Validator、沙盒和内容编辑器 | 保留 P4～P6 工具链路线，不进入近期机制 Sprint |
+
+主计划保留为历史蓝图，不回写其旧 Sprint 编号；ReferenceAnalyses 继续作为职责和风险参考，不作为任务状态来源。上述映射与后续调整统一以本文件为准。
 
 ## 决策记录
 
 | 日期 | 决策 | 原因 | 影响 |
 |------|------|------|------|
-| 2026-06-13 | 使用独立进度文件，不直接修改主计划 | 主计划保持蓝图稳定，进度文件记录执行状态 | 新会话需读取 `AGENT.md`、主计划、进度文件 |
+| 2026-06-13 | 使用独立进度文件，不直接修改主计划 | 主计划保持蓝图稳定，进度文件记录执行状态 | 新会话需读取 `AGENTS.md`、主计划、进度文件 |
 | 2026-06-15 | Battle 核心坐标类型命名为 `Vector2Int`，不改为 `SVector2Int` | 保持简洁；若表现层需要 Unity 类型，则显式写 `UnityEngine.Vector2Int` | Battle 内默认使用 `MechStorm.Battle.Foundation.Vector2Int`，跨层代码需避免省略命名空间导致歧义 |
 | 2026-06-17 | AI 新建 Unity 文件或目录时不手写 `.meta` 文件 | `.meta` 应由 Unity Editor 自动生成，避免 GUID / 导入配置不一致 | AI 可创建源码文件，但 `.meta` 等用户打开 Unity 后自动生成，再由 AI 检查是否一并提交 |
 | 2026-06-18 | 采用 `Data + Runtime` 命名区分静态数据与运行时数据 | `Data` 表示静态基础数据，`Runtime` 表示某场战斗中会变化的实例状态 | `PilotData` / `MechData` 不承载当前值，当前 AP / 当前耐久放入 `PilotRuntime` / `MechRuntime` |
@@ -206,13 +331,15 @@
 | 2026-06-27 | AI 默认只提供设计思路、职责划分、接口建议与验证方式，不直接修改代码 | 当前阶段开发者希望先自行实现代码，AI 作为方案讨论与校验辅助，避免未确认方案被提前写入项目 | 除非开发者明确要求“帮我实现 / 帮我改 / 提交”，AI 不主动编辑代码；若涉及文档记录、进度同步或提交，也应先确认意图 |
 | 2026-06-28 | 阶段完成后打版本标签，后续功能通过临时分支开发 | P0 / Sprint 1 已形成可运行小版本，需要稳定主线并方便回溯；后续直接在 `main` 开发风险较高 | 当前版本建议标记为 `v0.1.0-p0-sprint1`；后续从 `main` 新建 `feature/<阶段或功能名>` 分支开发，验证通过后再合并回 `main` |
 | 2026-06-28 | P1 / Sprint 2 继续使用临时入口，不立即接 TEngine 正式流程 | Sprint 2 的重点是 Battle 纯 C# 核心机制，过早接 Procedure、BattleModule、正式 UI 和资源加载会增加干扰 | `TempGameEntry` 继续作为测试入口；TEngine 正式流程、BattleMainUI、Prefab 动态加载与对象池放到 P2 或机制稳定后处理 |
-| 2026-06-28 | Buff / Modifier / Trigger 后置，技能雏形可在普通攻击稳定后引入 | Buff 会牵扯持续时间、叠层、触发时机、属性修正、驱散和免疫，过早引入会让基础战斗流程复杂化 | Sprint 2 不做 Buff / 技能；Sprint 3 可做最小主动技能；P2 再引入 Buff、Modifier、Trigger 与轻量 GAS 变种 |
-| 2026-06-28 | 输入 UI 分阶段接入，先做最小战斗输入 | 技能栏、目标选择、部署拖拽和正式 UI 都依赖稳定的战斗流程和单位管理 | Sprint 2 只做点击单位、点击格子移动、点击敌方普通攻击与结束回合；Sprint 3 再做技能按钮和目标选择；部署拖拽单独作为 BattlePreparation / Deployment 阶段 |
-| 2026-06-28 | 轻量战斗快照与调试导出排入 Sprint 2 后段 | 离线调试需要依赖 BattleController、多单位、回合推进和结果通知，太早做会缺少稳定数据源；但等到 P2 再做会降低后续逻辑调试效率 | Sprint 2 在 Task 2.6 之后追加 Task 2.7，只做 `BattleSnapshot`、关键 `BattleActionLog` 和 JSON 诊断导出；完整 Command Replay、Result Replay、悔棋和录像仍放到 Sprint 5 / P2 |
+| 2026-06-28 | Buff / Modifier / Trigger 后置，技能雏形可在普通攻击稳定后引入 | Buff 会牵扯持续时间、叠层、触发时机、属性修正、驱散和免疫，过早引入会让基础战斗流程复杂化 | Sprint 2 不做 Buff / 技能；Sprint 4 做最小主动技能；Sprint 10 再引入 State、Modifier、Trigger 与轻量 GAS 变种 |
+| 2026-06-28 | 输入 UI 分阶段接入，先做最小战斗输入 | 技能栏、目标选择、部署拖拽和正式 UI 都依赖稳定的战斗流程和单位管理 | Sprint 2 只做点击单位、点击格子移动、点击敌方普通攻击与结束回合；Sprint 4 做临时技能按钮和目标选择；部署拖拽放入 Sprint 9 的 BattlePreparation / Deployment |
+| 2026-06-28 | 轻量战斗快照与调试导出排入 Sprint 2 后段 | 离线调试需要依赖 BattleController、多单位、回合推进和结果通知，太早做会缺少稳定数据源；但等到 P2 再做会降低后续逻辑调试效率 | Sprint 2 在 Task 2.6 之后追加 Task 2.7，只做 `BattleSnapshot`、关键 `BattleActionLog` 和 JSON 诊断导出；正式 Command、恢复、悔棋和本地回放放到 Sprint 12 |
 | 2026-07-12 | 分离持久阵营、流程阶段、行动角色与本地敌我视角 | `Player / Enemy` 是客户端相对关系，不能作为 PVP 服务端状态和回放日志中的稳定身份；`Attacker / Defender` 也只描述单次行动 | Task 2.2 使用 `TeamA / TeamB / Neutral` 表达稳定阵营，Task 2.3 的流程阶段不再充当阵营参数；Task 2.7 与后续 PVP 回放记录统一的客观权威日志，客户端按观察者阵营映射 `Ally / Enemy / Neutral` |
-| 2026-07-15 | `CombatUnit` 使用本场战斗内稳定的显式 `UnitId`，动态召唤按真实玩法需求分阶段接入 | Snapshot、日志和回放不能依赖运行时对象引用；召唤同时影响注册、占格、回合队列、结果、表现和恢复，不应在 Task 2.7 提前实现，也不应等到天赋开发时临时拼接 | Task 2.7 只完成初始单位 ID、唯一性和查询；首个真实主动召唤技能可在 Sprint 3 后段作为独立垂直切片实现；天赋触发召唤在 P3 通过 Trigger / Ability 复用统一召唤入口。回放重建新对象，但沿用记录中的相同数字身份和数据 |
-| 2026-07-15 | 正式 Command、回放与 PVP 使用 `BattleCommandLog + BattleActionLog + BattleSnapshot` 分层记录 | 输入意图、权威结算事实和世界状态解决的问题不同；把本地点击拒绝混入权威日志会污染回放，把请求参数只放在 Result 中又无法解释失败操作原本想做什么 | Task 2.7 继续只做 ActionLog 与 Snapshot；Sprint 5 / P2 增加 BattleCommandLog。未进入 Session 的 UI 输入拒绝保留为非权威 InputTrace，调用契约异常进入错误日志 |
-| 2026-07-16 | Battle 与 Presentation 按职责目录和命名空间归类，保持现有 asmdef 边界 | 原 `MechStorm.Battle.Combat` 已同时容纳单位、回合、规则、行动结果和调试数据，无法继续表达职责；Sprint 3 还会增加空间、范围和技能脚本 | Battle 使用 `Actions / Diagnostics / Foundation / Numeric / Rules / Snapshots / Spatial / Turns / Units`，`BattleSession` 保留在根命名空间；Presentation 使用 `Board / Controllers / Input / Units`，测试目录同步镜像，不拆分程序集 |
+| 2026-07-15 | `CombatUnit` 使用本场战斗内稳定的显式 `UnitId`，动态召唤按真实玩法需求分阶段接入 | Snapshot、日志和回放不能依赖运行时对象引用；召唤同时影响注册、占格、回合队列、结果、表现和恢复，不应在 Task 2.7 提前实现，也不应等到天赋开发时临时拼接 | Task 2.7 只完成初始单位 ID、唯一性和查询；若 Sprint 4 的首个真实主动技能需要召唤，则在最小技能闭环验收后追加独立垂直切片，否则继续后置。天赋触发召唤在 P3 通过 Trigger / Ability 复用统一召唤入口 |
+| 2026-07-15 | 正式 Command、回放与 PVP 使用 `BattleCommandLog + BattleActionLog + BattleSnapshot` 分层记录 | 输入意图、权威结算事实和世界状态解决的问题不同；把本地点击拒绝混入权威日志会污染回放，把请求参数只放在 Result 中又无法解释失败操作原本想做什么 | Task 2.7 继续只做 ActionLog 与 Snapshot；Sprint 12 增加 BattleCommandLog 并关联三层数据。未进入 Session 的 UI 输入拒绝保留为非权威 InputTrace，调用契约异常进入错误日志 |
+| 2026-07-16 | Battle 与 Presentation 按职责目录和命名空间归类，保持现有 asmdef 边界 | 原 `MechStorm.Battle.Combat` 已同时容纳单位、回合、规则、行动结果和调试数据，无法继续表达职责；Sprint 3 会增加空间和范围脚本，后续 Sprint 还会增加技能脚本 | Battle 使用 `Actions / Diagnostics / Foundation / Numeric / Rules / Snapshots / Spatial / Turns / Units`，`BattleSession` 保留在根命名空间；Presentation 使用 `Board / Controllers / Input / Units`，测试目录同步镜像，不拆分程序集 |
+| 2026-07-18 | P1 执行顺序调整为“范围 → 技能 → 地形”，并补回旧规划遗漏 | 实际 Sprint 2 已完成战斗流程、Result、Snapshot 与日志，与主计划旧 Sprint 2 的属性、部位、资源和武器任务不同；把范围、技能、地形和复杂机甲机制塞入同一 Sprint 会扩大返工风险 | Sprint 3 做占格与范围，Sprint 4 做最小技能，Sprint 5 做 Terrain Cost / Dijkstra / A*，Sprint 6～8 补机甲深度、资源命中和高级空间规则；原 P2 工程化顺延到 Sprint 9～12，主计划保持历史蓝图，当前执行以本文件为准 |
+| 2026-07-18 | Sprint 3 继续瞬移，A* 放到地形阶段 | 当前没有路径预览、逐格移动动画或 AI 路径消费方，等代价格子的范围查询由 BFS 即可正确完成；A* 需要先有稳定通行和 Cost 规则 | Sprint 3 不实现 A*；Sprint 5 使用 Dijkstra 计算带权可达范围，A* 只负责单目标最低 Cost 路径 |
 
 ## Git 版本管理约定
 
@@ -230,6 +357,6 @@
 
 ## 下一步
 
-1. 明确 Sprint 3 的首个可验证任务和验收边界。
-2. 优先推进空间、占格与攻击范围规则，保持 Battle 纯 C# 和现有职责目录边界。
-3. 在目标规则稳定后接入最小主动技能；没有真实召唤技能时继续后置动态召唤。
+1. 开始 Task 3.4，为当前单位提供无副作用的移动格、普通攻击覆盖格与合法目标查询。
+2. 保证查询结果与最终移动、攻击校验使用同一套 Battle 规则。
+3. 不提前实现范围高亮或完整 TargetSelector / Filter。

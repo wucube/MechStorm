@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Cysharp.Threading.Tasks;
 using MechStorm.Battle;
+using MechStorm.Battle.Data;
 using MechStorm.Battle.Diagnostics;
 using MechStorm.Battle.Units;
 using MechStorm.Presentation.Board;
@@ -23,6 +24,8 @@ namespace MechStorm.Presentation
         [SerializeField]
         private Transform _plane;
         [SerializeField]
+        private GameObject _rangeHighlightTemplate;
+        [SerializeField]
         private int _boardWidth = 5;
         [SerializeField]
         private int _boardHeight = 4;
@@ -30,6 +33,10 @@ namespace MechStorm.Presentation
         private float _cellSize = 1f;
         [SerializeField]
         private Vector3 _boardOrigin = Vector3.zero;
+        [SerializeField]
+        private Color _boardColor = new Color(0.12f, 0.14f, 0.16f);
+        [SerializeField]
+        private Color _gridCellColor = new Color(0.2f, 0.23f, 0.26f);
         [SerializeField]
         private bool _showBoardDebugMarkers = true;
 
@@ -45,6 +52,7 @@ namespace MechStorm.Presentation
         private Transform _enemyA;
         private CombatUnitVisual _enemyAVisual;
         private GridCoordinateConverter _coordConverter;
+        private BattleRangeHighlighter _rangeHighlighter;
         private BattleBoardInputter _boardInputter;
         private BattlePresentationController _presentationController;
         private BattleSession _battleSession;
@@ -73,6 +81,12 @@ namespace MechStorm.Presentation
                 return;
             }
 
+            if (_rangeHighlightTemplate == null)
+            {
+                Log.Error("[MechStorm] TempGameEntry requires a range highlight template.");
+                return;
+            }
+
             if (_boardWidth <= 0 || _boardHeight <= 0)
             {
                 Log.Error("[MechStorm] Board width and height must be greater than zero.");
@@ -80,6 +94,7 @@ namespace MechStorm.Presentation
             }
 
             CreateBoard();
+            CreateRangeHighlighter();
             LogBoardValidation();
             CreateDebugMarkers();
             CreatePlayerA();
@@ -95,11 +110,22 @@ namespace MechStorm.Presentation
             RefreshHealthBarFacing();
         }
 
+        void OnDestroy()
+        {
+            _rangeHighlighter?.Dispose();
+        }
+
         private void CreateBoard()
         {
             _coordConverter = new GridCoordinateConverter(_cellSize, _boardOrigin);
             var boardRenderer = new BattleBoardRenderer();
-            boardRenderer.Initialize(_boardWidth, _boardHeight, _cellSize, _boardOrigin, _plane);
+            boardRenderer.Initialize(_boardWidth, _boardHeight, _cellSize, _boardOrigin, _plane, _boardColor);
+        }
+
+        private void CreateRangeHighlighter()
+        {
+            _rangeHighlighter = new BattleRangeHighlighter(_boardWidth, _boardHeight, _cellSize, _coordConverter,
+                _rangeHighlightTemplate, _gridCellColor);
         }
 
         private void LogBoardValidation()
@@ -156,8 +182,7 @@ namespace MechStorm.Presentation
         {
             var factory = new CombatUnitFactory();
             var pilot = new PilotData(1, "Player A", 3);
-            var mech = new MechData(1, "Training Mech", 10, 100, 3);
-
+            var mech = new MechData(1, "Training Mech", new BasicAttackData(10, 2, 5), 100, 4);
             _playerAUnit = factory.Create(PlayerAUnitId, pilot, mech, new Vector2Int(1, 1));
         }
 
@@ -204,7 +229,7 @@ namespace MechStorm.Presentation
         {
             var factory = new CombatUnitFactory();
             var pilot = new PilotData(2, "Enemy A", 3);
-            var mech = new MechData(2, "Training Enemy Mech", 10, 100, 3);
+            var mech = new MechData(2, "Training Enemy Mech", new BasicAttackData(8, 1, 3), 100, 3);
 
             _enemyAUnit = factory.Create(
                 EnemyAUnitId, pilot, mech,
@@ -384,6 +409,7 @@ namespace MechStorm.Presentation
                 return;
             }
 
+            _presentationController?.RefreshSelection();
             RefreshHealthBar(result.TargetUnit);
             Log.Info(
                 $"[MechStorm] {result.ActorUnit.Pilot.Name} attacked " +
@@ -544,7 +570,8 @@ namespace MechStorm.Presentation
             if (_battleSession == null ||
                 _playerAVisual == null ||
                 _enemyAVisual == null ||
-                _boardInputter == null)
+                _boardInputter == null ||
+                _rangeHighlighter == null)
             {
                 Log.Error("[MechStorm] BattlePresentationController dependencies are not ready.");
                 return;
@@ -556,7 +583,8 @@ namespace MechStorm.Presentation
                     [_playerAUnit] = _playerAVisual,
                     [_enemyAUnit] = _enemyAVisual,
                 };
-            _presentationController = new BattlePresentationController(_battleSession, combatUnitVisuals, _boardInputter);
+            _presentationController = new BattlePresentationController(
+                _battleSession, combatUnitVisuals, _boardInputter, _rangeHighlighter);
         }
 
         private void CreateBattleSession()

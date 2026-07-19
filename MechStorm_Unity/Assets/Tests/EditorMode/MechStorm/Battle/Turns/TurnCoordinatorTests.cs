@@ -1,4 +1,5 @@
 using System;
+using MechStorm.Battle.Data;
 using MechStorm.Battle.Foundation;
 using MechStorm.Battle.Turns;
 using MechStorm.Battle.Units;
@@ -113,7 +114,7 @@ namespace MechStorm.Battle.Tests.Turns
         private static CombatUnit CreateCombatUnit(int id)
         {
             var pilot = new PilotData(id, $"Pilot {id}", 10);
-            var mech = new MechData(id, $"Mech {id}", 10, 100, 3);
+            var mech = new MechData(id, $"Mech {id}", new BasicAttackData(10, 1, 1), 100, 3);
             var factory = new CombatUnitFactory();
             return factory.Create(id, pilot, mech, new Vector2Int(id, 0));
         }

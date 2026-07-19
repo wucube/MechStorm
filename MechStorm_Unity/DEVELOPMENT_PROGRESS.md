@@ -2,10 +2,10 @@
 
 ## 当前阶段
 
-- 当前里程碑：P1 / Sprint 3
-- 当前任务：Task 3.5 移动与普通攻击范围高亮
-- 当前状态：Sprint 3 进行中；Task 3.4 已完成，Task 3.5 待开始
-- 最后更新：2026-07-18
+- 当前里程碑：P1 / Sprint 4
+- 当前任务：Task 4.1 最小 `AbilityDefinition` 与 `TargetRule`
+- 当前状态：Sprint 3 已完成；Sprint 4 待开始
+- 最后更新：2026-07-19
 
 ## 状态约定
 
@@ -169,8 +169,8 @@
   - 验证方式：Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 编译通过；开发者已确认 Play Mode、EditMode 单元测试和 JSON 文件导出均正常
   - 备注：已完成稳定且大于零的显式 `UnitId`、Registry 唯一性和按 ID 查询、Session 快照与行动日志、版本化 JSON 序列化、Inspector 导出入口及防御性复制测试；Snapshot 记录创建时的完整战场数据，ActionLog 记录每次已提交操作的结果和相关变化。Sprint 2 不实现动态召唤、完整录像、悔棋、正式回放 UI 或权威回放系统
 
-- [~] Sprint 3：占格、攻击范围与目标规则
-  - 状态：进行中
+- [x] Sprint 3：占格、攻击范围与目标规则
+  - 状态：已完成
   - 总目标：建立统一的动态占格、可移动范围、普通攻击范围和候选目标查询，让 Battle 成为移动与攻击合法性的唯一事实来源，并提供最小范围高亮供 Play Mode 验收
   - 完成标准：存活单位不能初始重叠、不能移动到或穿过其他存活单位；死亡单位释放占格；普通攻击使用显式最小 / 最大范围；Battle 可无副作用查询移动格、攻击格与合法目标；Presentation 只消费查询结果显示高亮
   - 备注：继续使用等代价 BFS 和瞬移表现，不实现地形 Cost、Dijkstra、A*、路径动画、技能、Buff、Modifier、Trigger 或完整目标选择框架；只有出现第二个真实 Selector / Filter 使用方时才提取接口
@@ -199,11 +199,11 @@
   - 验证方式：`BattleSessionTests`、`MovementResolverTests` 与 `CombatUnitTests` 覆盖边界、阵营、死亡、占格、范围过滤和无效输入契约，并通过 JSON 化 Snapshot 与 ActionLog 验证查询无副作用；纯 C# NUnit 隔离运行 118 / 118 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已在 Unity Test Runner 手动验证通过，本任务未修改表现层，不要求额外 Play Mode 验证
   - 备注：`BattleSession` 作为统一查询入口，组合当前行动单位、单位注册表与规则服务；移动范围由 `MovementResolver` 计算，攻击覆盖格由 `AttackResolver` 计算，合法目标与最终攻击共享同阵营、死亡和射程校验；暂不建立完整 `ITargetSelector` / `ITargetFilter`
 
-- [ ] Task 3.5 移动与普通攻击范围高亮
-  - 状态：未开始
+- [x] Task 3.5 移动与普通攻击范围高亮
+  - 状态：已完成
   - 完成标准：选择当前单位后可显示移动范围和普通攻击范围；合法目标有独立标识；移动、攻击、取消选择、结束行动和切换单位后清除旧高亮
-  - 验证方式：Presentation EditMode 覆盖结果映射；Unity Play Mode 手动验证显示范围与 Battle 查询一致
-  - 备注：只做程序化颜色或占位格高亮，不接正式 TEngine `BattleMainUI`，Presentation 不重新计算距离、阵营或占格规则
+  - 验证方式：`BattleRangeHighlightMapperTests` 覆盖移动、攻击、范围重叠、合法目标优先级、重复位置、空输入、非法输入和查询集合不变；纯 C# NUnit 隔离运行 123 / 123 通过；Battle、Battle.Tests、Presentation、Presentation.Tests、GameLogic 与 Editor 项目编译通过；开发者已在 Unity Play Mode 验证范围、颜色、坐标、持续选中和手动结束行动流程
+  - 备注：Presentation 通过 `BattleSession` 权威查询生成高亮映射，`BattleRangeHighlighter` 缓存场景模板实例并使用 `MaterialPropertyBlock` 刷新颜色；移动或攻击后保持当前单位选中并刷新范围，结束行动或单位切换后恢复默认网格颜色；Test 场景与材质已随提交 `e8a8de6` 保存，不接正式 TEngine `BattleMainUI`
 
 - [ ] Sprint 4：最小主动技能闭环
   - 状态：未开始
